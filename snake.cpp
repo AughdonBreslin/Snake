@@ -117,15 +117,17 @@ private:
         }
     }
 
-    void drawGrid() {
+    void drawBackground() {
+        // Checkerboard pattern
         sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
-        cell.setFillColor(sf::Color::Black);
-        cell.setOutlineColor(sf::Color(0, 100, 0));
-        cell.setOutlineThickness(1);
-
-        for (int x = 1; x <= GRID_WIDTH; x++) {
-            for (int y = 1; y <= GRID_HEIGHT; y++) {
-                cell.setPosition(x * CELL_SIZE, y * CELL_SIZE);
+        for (int i = 1; i <= GRID_WIDTH; i++) {
+            for (int j = 1; j <= GRID_HEIGHT; j++) {
+                if ((i + j) % 2 == 0) {
+                    cell.setFillColor(sf::Color(50, 50, 50));
+                } else {
+                    cell.setFillColor(sf::Color(40, 40, 40));
+                }
+                cell.setPosition(i * CELL_SIZE, j * CELL_SIZE);
                 window.draw(cell);
             }
         }
@@ -233,7 +235,7 @@ public:
             window.clear(sf::Color::Black);
 
             drawWalls();
-            drawGrid();
+            drawBackground();
 
             if (gameStarted && !gameOver) {
                 move();
