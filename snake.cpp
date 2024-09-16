@@ -191,7 +191,7 @@ public:
         instructionsText.setCharacterSize(20);
         instructionsText.setFillColor(sf::Color::White);
         readHighScore();
-        instructionsText.setString("Snake Game!\nHigh Score: " +std::to_string(highScore) + "\nPress 'S' to start");
+        instructionsText.setString("Snake Game!\nHigh Score: " +std::to_string(highScore) + "\nPress Enter to start");
         instructionsText.setPosition(WINDOW_WIDTH / 2 - instructionsText.getLocalBounds().width / 2,
                                      WINDOW_HEIGHT / 2 - instructionsText.getLocalBounds().height / 2);
 
@@ -206,10 +206,10 @@ public:
                     window.close();
                 }
                 if (event.type == sf::Event::KeyPressed) {
-                    if (event.key.code == sf::Keyboard::S && !gameStarted) {
+                    if (event.key.code == sf::Keyboard::Enter && !gameStarted) {
                         gameStarted = true;
                     }
-                    if (event.key.code == sf::Keyboard::R) {
+                    if (event.key.code == sf::Keyboard::Enter) {
                         setup();
                         gameStarted = true;
                     }
@@ -254,7 +254,7 @@ public:
                 gameOverText.setCharacterSize(30);
                 gameOverText.setFillColor(sf::Color::White);
                 gameOverText.setString("Game Over!\nScore: " + std::to_string(score) + 
-                                       "\nHigh Score: " + std::to_string(highScore) + "\nPress 'R' to restart");
+                                       "\nHigh Score: " + std::to_string(highScore) + "\nPress Enter to restart");
                 gameOverText.setPosition(WINDOW_WIDTH / 2 - gameOverText.getLocalBounds().width / 2,
                                          WINDOW_HEIGHT / 2 - gameOverText.getLocalBounds().height / 2);
                 window.draw(gameOverText);
