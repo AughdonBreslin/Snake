@@ -339,9 +339,7 @@ public:
                             settings = false;
                             leaderboard = false;
                         }
-                    }
-
-                    if (gameStarted && !gameOver) {
+                    } else if (gameStarted && !gameOver) {
                         if ((event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::W) &&
                          ((moveQueue.empty() && direction != Direction::Down) || moveQueue.back() != Direction::Down)) {
                             moveQueue.push(Direction::Up);
@@ -358,11 +356,13 @@ public:
                          ((moveQueue.empty() && direction != Direction::Left) || moveQueue.back() != Direction::Left)) {
                             moveQueue.push(Direction::Right);
                         }
-                    }
-                    if (gameOver) {
-                        if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Space) {
+                    } else if (gameOver) {
+                        if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Space || event.key.code == sf::Keyboard::Escape) {
                             setup();
                         }
+                    }
+                    if (event.key.code == sf::Keyboard::Delete || event.key.code == sf::Keyboard::BackSpace) {
+                        window.close();
                     }
                 }
             }
