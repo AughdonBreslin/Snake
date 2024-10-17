@@ -13,7 +13,7 @@ const int WINDOW_HEIGHT = 440;
 const int CELL_SIZE = 20;
 const int GRID_WIDTH = 20;
 const int GRID_HEIGHT = 20;
-const std::string PATH = "/mnt/c/Users/aughb/Personal_Projects/Snake/";
+const std::string PATH = "/mnt/c/Users/aughb/Personal_Projects/Snake/cpp/";
 const std::vector<std::pair<int, int>> HAMILTONIAN_CYCLE = {
     { 7,  9}, { 7, 10}, { 7, 11}, { 7, 12}, { 8, 12},
     { 8, 11}, { 8, 10}, { 8,  9}, { 8,  8}, { 9,  8},
@@ -159,7 +159,7 @@ private:
     }
 
     void readHighScore() {
-        std::ifstream file(PATH + "highscore.txt");
+        std::ifstream file(PATH + "data/highscore.txt");
         if (file.is_open()) {
             if (!(file >> highScore)) {
                 highScore =  0;
@@ -171,7 +171,7 @@ private:
     }
 
     void writeHighScore() {
-        std::ofstream file(PATH + "highscore.txt");
+        std::ofstream file(PATH + "data/highscore.txt");
         if (file.is_open()) {
             file << highScore;
             file.close();
@@ -179,7 +179,7 @@ private:
     }
 
     void readSettings() {
-        std::ifstream file(PATH + "settings.txt");
+        std::ifstream file(PATH + "data/settings.txt");
         if (file.is_open()) {
             if (!(file >> frameRate)) {
                 frameRate = 10;
@@ -191,7 +191,7 @@ private:
     }
 
     void writeSettings() {
-        std::ofstream file(PATH + "settings.txt");
+        std::ofstream file(PATH + "data/settings.txt");
         if (file.is_open()) {
             file << frameRate;
             file.close();
@@ -392,7 +392,7 @@ public:
     SnakeGame(std::string left) : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Snake Game", sf::Style::None) {
         setup();
         window.setFramerateLimit(frameRate);
-        if (!font.loadFromFile(PATH + "fira.ttf")) {
+        if (!font.loadFromFile(PATH + "data/fira.ttf")) {
             throw std::runtime_error("Unable to load font");
         }
         if (left == "l") {
@@ -552,14 +552,6 @@ public:
     }
 
     void cleanup() {
-        font.~Font();
-        scoreText.~Text();
-        highScoreText.~Text();
-        menuText.~Text();
-        settingsText.~Text();
-        leaderboardText.~Text();
-        // delete outstanding objects
-        delete this;
         window.close();
     }
 };
