@@ -13,7 +13,89 @@ const int WINDOW_HEIGHT = 440;
 const int CELL_SIZE = 20;
 const int GRID_WIDTH = 20;
 const int GRID_HEIGHT = 20;
-const std::string path = "/mnt/c/Users/aughb/Personal_Projects/Snake/";
+const std::string PATH = "/mnt/c/Users/aughb/Personal_Projects/Snake/";
+const std::vector<std::pair<int, int>> HAMILTONIAN_CYCLE = {
+    { 7,  9}, { 7, 10}, { 7, 11}, { 7, 12}, { 8, 12},
+    { 8, 11}, { 8, 10}, { 8,  9}, { 8,  8}, { 9,  8},
+    { 9,  9}, { 9, 10}, {10, 10}, {11, 10}, {11, 11},
+    {11, 12}, {11, 13}, {11, 14}, {10, 14}, {10, 13},
+    {10, 12}, {10, 11}, { 9, 11}, { 9, 12}, { 9, 13},
+    { 8, 13}, { 8, 14}, { 9, 14}, { 9, 15}, {10, 15},
+    {11, 15}, {12, 15}, {12, 14}, {13, 14}, {14, 14},
+    {15, 14}, {15, 13}, {14, 13}, {14, 12}, {14, 11},
+    {13, 11}, {13, 12}, {13, 13}, {12, 13}, {12, 12},
+    {12, 11}, {12, 10}, {13, 10}, {14, 10}, {15, 10},
+    {15, 11}, {15, 12}, {16, 12}, {16, 11}, {16, 10},
+    {16,  9}, {15,  9}, {15,  8}, {15,  7}, {14,  7},
+    {14,  8}, {14,  9}, {13,  9}, {13,  8}, {13,  7},
+    {13,  6}, {12,  6}, {12,  7}, {11,  7}, {11,  8},
+    {12,  8}, {12,  9}, {11,  9}, {10,  9}, {10,  8},
+    {10,  7}, { 9,  7}, { 8,  7}, { 7,  7}, { 6,  7},
+    { 6,  6}, { 6,  5}, { 7,  5}, { 7,  6}, { 8,  6},
+    { 9,  6}, {10,  6}, {11,  6}, {11,  5}, {10,  5},
+    {10,  4}, { 9,  4}, { 9,  5}, { 8,  5}, { 8,  4},
+    { 8,  3}, { 7,  3}, { 7,  4}, { 6,  4}, { 6,  3},
+    { 5,  3}, { 4,  3}, { 4,  2}, { 3,  2}, { 2,  2},
+    { 2,  1}, { 2,  0}, { 3,  0}, { 3,  1}, { 4,  1},
+    { 4,  0}, { 5,  0}, { 6,  0}, { 6,  1}, { 5,  1},
+    { 5,  2}, { 6,  2}, { 7,  2}, { 8,  2}, { 8,  1},
+    { 7,  1}, { 7,  0}, { 8,  0}, { 9,  0}, { 9,  1},
+    {10,  1}, {10,  0}, {11,  0}, {12,  0}, {13,  0},
+    {13,  1}, {13,  2}, {13,  3}, {12,  3}, {12,  2},
+    {12,  1}, {11,  1}, {11,  2}, {10,  2}, { 9,  2},
+    { 9,  3}, {10,  3}, {11,  3}, {11,  4}, {12,  4},
+    {12,  5}, {13,  5}, {13,  4}, {14,  4}, {14,  3},
+    {14,  2}, {14,  1}, {14,  0}, {15,  0}, {15,  1},
+    {15,  2}, {15,  3}, {15,  4}, {16,  4}, {16,  3},
+    {17,  3}, {18,  3}, {18,  2}, {17,  2}, {16,  2},
+    {16,  1}, {16,  0}, {17,  0}, {17,  1}, {18,  1},
+    {18,  0}, {19,  0}, {19,  1}, {19,  2}, {19,  3},
+    {19,  4}, {18,  4}, {17,  4}, {17,  5}, {16,  5},
+    {15,  5}, {14,  5}, {14,  6}, {15,  6}, {16,  6},
+    {17,  6}, {18,  6}, {18,  5}, {19,  5}, {19,  6},
+    {19,  7}, {18,  7}, {17,  7}, {16,  7}, {16,  8},
+    {17,  8}, {18,  8}, {19,  8}, {19,  9}, {18,  9},
+    {17,  9}, {17, 10}, {18, 10}, {19, 10}, {19, 11},
+    {19, 12}, {19, 13}, {19, 14}, {19, 15}, {19, 16},
+    {18, 16}, {18, 15}, {17, 15}, {17, 14}, {18, 14},
+    {18, 13}, {18, 12}, {18, 11}, {17, 11}, {17, 12},
+    {17, 13}, {16, 13}, {16, 14}, {16, 15}, {15, 15},
+    {15, 16}, {16, 16}, {17, 16}, {17, 17}, {17, 18},
+    {18, 18}, {18, 17}, {19, 17}, {19, 18}, {19, 19},
+    {18, 19}, {17, 19}, {16, 19}, {16, 18}, {16, 17},
+    {15, 17}, {15, 18}, {15, 19}, {14, 19}, {14, 18},
+    {13, 18}, {13, 19}, {12, 19}, {12, 18}, {11, 18},
+    {11, 19}, {10, 19}, {10, 18}, {10, 17}, {11, 17},
+    {12, 17}, {13, 17}, {14, 17}, {14, 16}, {14, 15},
+    {13, 15}, {13, 16}, {12, 16}, {11, 16}, {10, 16},
+    { 9, 16}, { 8, 16}, { 8, 15}, { 7, 15}, { 7, 14},
+    { 7, 13}, { 6, 13}, { 5, 13}, { 5, 12}, { 6, 12},
+    { 6, 11}, { 5, 11}, { 4, 11}, { 4, 12}, { 4, 13},
+    { 3, 13}, { 3, 12}, { 3, 11}, { 3, 10}, { 4, 10},
+    { 5, 10}, { 6, 10}, { 6,  9}, { 5,  9}, { 4,  9},
+    { 3,  9}, { 2,  9}, { 1,  9}, { 1, 10}, { 2, 10},
+    { 2, 11}, { 1, 11}, { 1, 12}, { 2, 12}, { 2, 13},
+    { 2, 14}, { 2, 15}, { 1, 15}, { 1, 16}, { 1, 17},
+    { 1, 18}, { 2, 18}, { 3, 18}, { 3, 17}, { 2, 17},
+    { 2, 16}, { 3, 16}, { 3, 15}, { 3, 14}, { 4, 14},
+    { 4, 15}, { 5, 15}, { 5, 14}, { 6, 14}, { 6, 15},
+    { 6, 16}, { 7, 16}, { 7, 17}, { 8, 17}, { 9, 17},
+    { 9, 18}, { 9, 19}, { 8, 19}, { 8, 18}, { 7, 18},
+    { 7, 19}, { 6, 19}, { 6, 18}, { 6, 17}, { 5, 17},
+    { 5, 16}, { 4, 16}, { 4, 17}, { 4, 18}, { 5, 18},
+    { 5, 19}, { 4, 19}, { 3, 19}, { 2, 19}, { 1, 19},
+    { 0, 19}, { 0, 18}, { 0, 17}, { 0, 16}, { 0, 15},
+    { 0, 14}, { 1, 14}, { 1, 13}, { 0, 13}, { 0, 12},
+    { 0, 11}, { 0, 10}, { 0,  9}, { 0,  8}, { 0,  7},
+    { 0,  6}, { 1,  6}, { 1,  7}, { 1,  8}, { 2,  8},
+    { 2,  7}, { 2,  6}, { 2,  5}, { 2,  4}, { 1,  4},
+    { 1,  5}, { 0,  5}, { 0,  4}, { 0,  3}, { 0,  2},
+    { 0,  1}, { 0,  0}, { 1,  0}, { 1,  1}, { 1,  2},
+    { 1,  3}, { 2,  3}, { 3,  3}, { 3,  4}, { 3,  5},
+    { 4,  5}, { 4,  4}, { 5,  4}, { 5,  5}, { 5,  6},
+    { 5,  7}, { 4,  7}, { 4,  6}, { 3,  6}, { 3,  7},
+    { 3,  8}, { 4,  8}, { 5,  8}, { 6,  8}, { 7,  8}
+};
 
 enum class Direction { Up, Down, Left, Right };
 
@@ -38,7 +120,9 @@ private:
     sf::Text menuText;
     sf::Text settingsText;
     sf::Text leaderboardText;
-    
+    sf::RectangleShape cell;
+    sf::RectangleShape wall;
+
     void setup() {
         snake = { { 3,  3}, { 2,  3}, {1,  3} };
         direction = Direction::Right;
@@ -50,6 +134,7 @@ private:
         score =  0;
         highScore =  0;
         offset =  0;
+        cell.setSize(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         spawnFood();
         readSettings();
         updateScoreText();
@@ -74,7 +159,7 @@ private:
     }
 
     void readHighScore() {
-        std::ifstream file(path + "highscore.txt");
+        std::ifstream file(PATH + "highscore.txt");
         if (file.is_open()) {
             if (!(file >> highScore)) {
                 highScore =  0;
@@ -86,7 +171,7 @@ private:
     }
 
     void writeHighScore() {
-        std::ofstream file(path + "highscore.txt");
+        std::ofstream file(PATH + "highscore.txt");
         if (file.is_open()) {
             file << highScore;
             file.close();
@@ -94,7 +179,7 @@ private:
     }
 
     void readSettings() {
-        std::ifstream file(path + "settings.txt");
+        std::ifstream file(PATH + "settings.txt");
         if (file.is_open()) {
             if (!(file >> frameRate)) {
                 frameRate = 10;
@@ -106,7 +191,7 @@ private:
     }
 
     void writeSettings() {
-        std::ofstream file(path + "settings.txt");
+        std::ofstream file(PATH + "settings.txt");
         if (file.is_open()) {
             file << frameRate;
             file.close();
@@ -150,7 +235,6 @@ private:
 
     void drawBackground() {
         // Checkerboard pattern
-        sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         for (int i = 1; i <= GRID_WIDTH; i++) {
             for (int j = 1; j <= GRID_HEIGHT; j++) {
                 if ((i + j) %  2 ==  0) {
@@ -165,10 +249,10 @@ private:
     }
 
     void drawWalls() {
-        sf::RectangleShape wall(sf::Vector2f(WINDOW_WIDTH, CELL_SIZE));
         wall.setFillColor(sf::Color(100, 100, 100));
 
         // Top wall
+        wall.setSize(sf::Vector2f(WINDOW_WIDTH, CELL_SIZE));
         wall.setPosition(0, 0);
         window.draw(wall);
 
@@ -188,7 +272,6 @@ private:
 
     void drawLeaderboardBackground() {
         // Gold to silver to bronze gradient
-        sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         for (int i = 1; i <= GRID_WIDTH; i++) {
             for (int j = 1; j <= GRID_HEIGHT; j++) {
                 if ((i + j) %  3 ==  0) {
@@ -205,129 +288,46 @@ private:
     }
 
     void drawSettingsBackground() {
-        std::vector<std::pair<int, int>> hamiltonianCycle = {
-            { 7,  9}, { 7, 10}, { 7, 11}, { 7, 12}, { 8, 12},
-            { 8, 11}, { 8, 10}, { 8,  9}, { 8,  8}, { 9,  8},
-            { 9,  9}, { 9, 10}, {10, 10}, {11, 10}, {11, 11},
-            {11, 12}, {11, 13}, {11, 14}, {10, 14}, {10, 13},
-            {10, 12}, {10, 11}, { 9, 11}, { 9, 12}, { 9, 13},
-            { 8, 13}, { 8, 14}, { 9, 14}, { 9, 15}, {10, 15},
-            {11, 15}, {12, 15}, {12, 14}, {13, 14}, {14, 14},
-            {15, 14}, {15, 13}, {14, 13}, {14, 12}, {14, 11},
-            {13, 11}, {13, 12}, {13, 13}, {12, 13}, {12, 12},
-            {12, 11}, {12, 10}, {13, 10}, {14, 10}, {15, 10},
-            {15, 11}, {15, 12}, {16, 12}, {16, 11}, {16, 10},
-            {16,  9}, {15,  9}, {15,  8}, {15,  7}, {14,  7},
-            {14,  8}, {14,  9}, {13,  9}, {13,  8}, {13,  7},
-            {13,  6}, {12,  6}, {12,  7}, {11,  7}, {11,  8},
-            {12,  8}, {12,  9}, {11,  9}, {10,  9}, {10,  8},
-            {10,  7}, { 9,  7}, { 8,  7}, { 7,  7}, { 6,  7},
-            { 6,  6}, { 6,  5}, { 7,  5}, { 7,  6}, { 8,  6},
-            { 9,  6}, {10,  6}, {11,  6}, {11,  5}, {10,  5},
-            {10,  4}, { 9,  4}, { 9,  5}, { 8,  5}, { 8,  4},
-            { 8,  3}, { 7,  3}, { 7,  4}, { 6,  4}, { 6,  3},
-            { 5,  3}, { 4,  3}, { 4,  2}, { 3,  2}, { 2,  2},
-            { 2,  1}, { 2,  0}, { 3,  0}, { 3,  1}, { 4,  1},
-            { 4,  0}, { 5,  0}, { 6,  0}, { 6,  1}, { 5,  1},
-            { 5,  2}, { 6,  2}, { 7,  2}, { 8,  2}, { 8,  1},
-            { 7,  1}, { 7,  0}, { 8,  0}, { 9,  0}, { 9,  1},
-            {10,  1}, {10,  0}, {11,  0}, {12,  0}, {13,  0},
-            {13,  1}, {13,  2}, {13,  3}, {12,  3}, {12,  2},
-            {12,  1}, {11,  1}, {11,  2}, {10,  2}, { 9,  2},
-            { 9,  3}, {10,  3}, {11,  3}, {11,  4}, {12,  4},
-            {12,  5}, {13,  5}, {13,  4}, {14,  4}, {14,  3},
-            {14,  2}, {14,  1}, {14,  0}, {15,  0}, {15,  1},
-            {15,  2}, {15,  3}, {15,  4}, {16,  4}, {16,  3},
-            {17,  3}, {18,  3}, {18,  2}, {17,  2}, {16,  2},
-            {16,  1}, {16,  0}, {17,  0}, {17,  1}, {18,  1},
-            {18,  0}, {19,  0}, {19,  1}, {19,  2}, {19,  3},
-            {19,  4}, {18,  4}, {17,  4}, {17,  5}, {16,  5},
-            {15,  5}, {14,  5}, {14,  6}, {15,  6}, {16,  6},
-            {17,  6}, {18,  6}, {18,  5}, {19,  5}, {19,  6},
-            {19,  7}, {18,  7}, {17,  7}, {16,  7}, {16,  8},
-            {17,  8}, {18,  8}, {19,  8}, {19,  9}, {18,  9},
-            {17,  9}, {17, 10}, {18, 10}, {19, 10}, {19, 11},
-            {19, 12}, {19, 13}, {19, 14}, {19, 15}, {19, 16},
-            {18, 16}, {18, 15}, {17, 15}, {17, 14}, {18, 14},
-            {18, 13}, {18, 12}, {18, 11}, {17, 11}, {17, 12},
-            {17, 13}, {16, 13}, {16, 14}, {16, 15}, {15, 15},
-            {15, 16}, {16, 16}, {17, 16}, {17, 17}, {17, 18},
-            {18, 18}, {18, 17}, {19, 17}, {19, 18}, {19, 19},
-            {18, 19}, {17, 19}, {16, 19}, {16, 18}, {16, 17},
-            {15, 17}, {15, 18}, {15, 19}, {14, 19}, {14, 18},
-            {13, 18}, {13, 19}, {12, 19}, {12, 18}, {11, 18},
-            {11, 19}, {10, 19}, {10, 18}, {10, 17}, {11, 17},
-            {12, 17}, {13, 17}, {14, 17}, {14, 16}, {14, 15},
-            {13, 15}, {13, 16}, {12, 16}, {11, 16}, {10, 16},
-            { 9, 16}, { 8, 16}, { 8, 15}, { 7, 15}, { 7, 14},
-            { 7, 13}, { 6, 13}, { 5, 13}, { 5, 12}, { 6, 12},
-            { 6, 11}, { 5, 11}, { 4, 11}, { 4, 12}, { 4, 13},
-            { 3, 13}, { 3, 12}, { 3, 11}, { 3, 10}, { 4, 10},
-            { 5, 10}, { 6, 10}, { 6,  9}, { 5,  9}, { 4,  9},
-            { 3,  9}, { 2,  9}, { 1,  9}, { 1, 10}, { 2, 10},
-            { 2, 11}, { 1, 11}, { 1, 12}, { 2, 12}, { 2, 13},
-            { 2, 14}, { 2, 15}, { 1, 15}, { 1, 16}, { 1, 17},
-            { 1, 18}, { 2, 18}, { 3, 18}, { 3, 17}, { 2, 17},
-            { 2, 16}, { 3, 16}, { 3, 15}, { 3, 14}, { 4, 14},
-            { 4, 15}, { 5, 15}, { 5, 14}, { 6, 14}, { 6, 15},
-            { 6, 16}, { 7, 16}, { 7, 17}, { 8, 17}, { 9, 17},
-            { 9, 18}, { 9, 19}, { 8, 19}, { 8, 18}, { 7, 18},
-            { 7, 19}, { 6, 19}, { 6, 18}, { 6, 17}, { 5, 17},
-            { 5, 16}, { 4, 16}, { 4, 17}, { 4, 18}, { 5, 18},
-            { 5, 19}, { 4, 19}, { 3, 19}, { 2, 19}, { 1, 19},
-            { 0, 19}, { 0, 18}, { 0, 17}, { 0, 16}, { 0, 15},
-            { 0, 14}, { 1, 14}, { 1, 13}, { 0, 13}, { 0, 12},
-            { 0, 11}, { 0, 10}, { 0,  9}, { 0,  8}, { 0,  7},
-            { 0,  6}, { 1,  6}, { 1,  7}, { 1,  8}, { 2,  8},
-            { 2,  7}, { 2,  6}, { 2,  5}, { 2,  4}, { 1,  4},
-            { 1,  5}, { 0,  5}, { 0,  4}, { 0,  3}, { 0,  2},
-            { 0,  1}, { 0,  0}, { 1,  0}, { 1,  1}, { 1,  2},
-            { 1,  3}, { 2,  3}, { 3,  3}, { 3,  4}, { 3,  5},
-            { 4,  5}, { 4,  4}, { 5,  4}, { 5,  5}, { 5,  6},
-            { 5,  7}, { 4,  7}, { 4,  6}, { 3,  6}, { 3,  7},
-            { 3,  8}, { 4,  8}, { 5,  8}, { 6,  8}, { 7,  8}
-            };
-        sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         for (int i =  0; i < 400; i++) {
             if ((i + offset)%400 > 0 && (i + offset)%400 < 10) {
                 cell.setFillColor(sf::Color(150 + 10*((i + offset)%400), 0, 0));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 50 && (i + offset)%400 < 60) {
                 cell.setFillColor(sf::Color(0, 150 + 10*((i + offset)%400-50), 0));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 100 && (i + offset)%400 < 110) {
                 cell.setFillColor(sf::Color(0, 0, 150 + 10*((i + offset)%400-100)));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 150 && (i + offset)%400 < 160) {
                 cell.setFillColor(sf::Color(150 + 10*((i + offset)%400-150), 150 + 10*((i + offset)%400-150), 0));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 200 && (i + offset)%400 < 210) {
                 cell.setFillColor(sf::Color(150 + 10*((i + offset)%400-200), 0, 150 + 10*((i + offset)%400-200)));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 250 && (i + offset)%400 < 260) {
                 cell.setFillColor(sf::Color(0, 150 + 10*((i + offset)%400-250), 150 + 10*((i + offset)%400-250)));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 300 && (i + offset)%400 < 310) {
                 cell.setFillColor(sf::Color(150 + 10*((i + offset)%400-300), 150 + 10*((i + offset)%400-300), 150 + 10*((i + offset)%400-300)));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
 
             } else if ((i + offset)%400 > 350 && (i + offset)%400 < 360) {
                 cell.setFillColor(sf::Color(150 - 10*((i + offset)%400-350), 150 - 10*((i + offset)%400-350), 150 - 10*((i + offset)%400-350)));
-                cell.setPosition((hamiltonianCycle[i%400].first + 1) * CELL_SIZE, 
-                    (hamiltonianCycle[i%400].second + 1) * CELL_SIZE + 1);
+                cell.setPosition((HAMILTONIAN_CYCLE[i%400].first + 1) * CELL_SIZE, 
+                    (HAMILTONIAN_CYCLE[i%400].second + 1) * CELL_SIZE + 1);
             } else {
                 cell.setFillColor(sf::Color::Black);
                 cell.setPosition(0, 0);
@@ -338,7 +338,6 @@ private:
     }
 
     void drawMenuBackground() {
-        sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         for (int i = 1; i <= GRID_WIDTH; i++) {
             for (int j = 1; j <= GRID_HEIGHT; j++) {
                 if ((i + j) % 2 == 0) {
@@ -350,22 +349,20 @@ private:
                 window.draw(cell);
             }
         }
-        sf::RectangleShape segment(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         for (int i = 15; i < 20; i++) {
-            segment.setFillColor(sf::Color(50 + i * 10, 250 - i * 10, 0));
-            segment.setPosition(i * CELL_SIZE, 18 * CELL_SIZE);
-            window.draw(segment);
+            cell.setFillColor(sf::Color(50 + i * 10, 250 - i * 10, 0));
+            cell.setPosition(i * CELL_SIZE, 18 * CELL_SIZE);
+            window.draw(cell);
         }
         for (int i = 2; i < 7; i++) {
-            segment.setFillColor(sf::Color(50 + i * 10, 250 - i * 10, 0));
-            segment.setPosition(4 * CELL_SIZE, i * CELL_SIZE);
-            window.draw(segment);
+            cell.setFillColor(sf::Color(50 + i * 10, 250 - i * 10, 0));
+            cell.setPosition(4 * CELL_SIZE, i * CELL_SIZE);
+            window.draw(cell);
         }
     }
 
     void drawGameOverBackground() {
         // Radial heat map
-        sf::RectangleShape cell(sf::Vector2f(CELL_SIZE, CELL_SIZE));
         for (int i = 1; i <= GRID_WIDTH; i++) {
             for (int j = 1; j <= GRID_HEIGHT; j++) {
                 int distance = std::min(std::min(i, GRID_WIDTH - i), std::min(j, GRID_HEIGHT - j));
@@ -378,27 +375,24 @@ private:
     }
 
     void drawSnake() {
-        sf::RectangleShape segment(sf::Vector2f(CELL_SIZE, CELL_SIZE));
-
         for (const auto& pos : snake) {
-            segment.setFillColor(sf::Color(50 + pos.x * 10, 250 - pos.y * 10, 0));
-            segment.setPosition(pos.x * CELL_SIZE, pos.y * CELL_SIZE);
-            window.draw(segment);
+            cell.setFillColor(sf::Color(50 + pos.x * 10, 250 - pos.y * 10, 0));
+            cell.setPosition(pos.x * CELL_SIZE, pos.y * CELL_SIZE);
+            window.draw(cell);
         }
     }
 
     void drawFood() {
-        sf::RectangleShape foodShape(sf::Vector2f(CELL_SIZE, CELL_SIZE));
-        foodShape.setFillColor(sf::Color::Red);
-        foodShape.setPosition(food.x * CELL_SIZE, food.y * CELL_SIZE);
-        window.draw(foodShape);
+        cell.setFillColor(sf::Color::Red);
+        cell.setPosition(food.x * CELL_SIZE, food.y * CELL_SIZE);
+        window.draw(cell);
     }
 
 public:
     SnakeGame(std::string left) : window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Snake Game", sf::Style::None) {
         setup();
         window.setFramerateLimit(frameRate);
-        if (!font.loadFromFile(path + "fira.ttf")) {
+        if (!font.loadFromFile(PATH + "fira.ttf")) {
             throw std::runtime_error("Unable to load font");
         }
         if (left == "l") {
@@ -421,23 +415,27 @@ public:
         menuText.setFont(font);
         menuText.setCharacterSize(30);
         menuText.setFillColor(sf::Color::White);
-        menuText.setString(" Snake Game\n Start Game: Enter/Space\n Leaderboard: Alt\n Settings: Q");
+        menuText.setString(" Snake Game\n Start: Enter/Space\n Leaderboard: Alt\n Settings: Q\n Quit: Delete/Backspace");
         menuText.setPosition(WINDOW_WIDTH / 2 - menuText.getLocalBounds().width / 2,
                              WINDOW_HEIGHT / 2 - menuText.getLocalBounds().height / 2);
         
         settingsText.setFont(font);
         settingsText.setCharacterSize(30);
         settingsText.setFillColor(sf::Color::White);
-        settingsText.setString(" Settings\n Difficulty: 1 2 3 4 5\n Back: Escape");
+        settingsText.setString(" Settings\n Difficulty: 1 2 3 4 5\n Move: WASD/Arrows\n Back: Escape");
         settingsText.setPosition(WINDOW_WIDTH / 2 - settingsText.getLocalBounds().width / 2,
                                 WINDOW_HEIGHT / 2 - settingsText.getLocalBounds().height / 2);
 
         leaderboardText.setFont(font);
         leaderboardText.setCharacterSize(30);
         leaderboardText.setFillColor(sf::Color::Black);
-        leaderboardText.setString(" Leaderboard\n 1. 0\n  2. 0\n 3. 0\n Back: Escape");
+        leaderboardText.setString(" Leaderboard\n 1. 0\n 2. 0\n 3. 0\n Back: Escape");
         leaderboardText.setPosition(WINDOW_WIDTH / 2 - leaderboardText.getLocalBounds().width /  2,
                                    WINDOW_HEIGHT / 2 - leaderboardText.getLocalBounds().height / 2);
+    }
+
+    ~SnakeGame() {
+        cleanup();
     }
 
     void run() {
@@ -445,7 +443,7 @@ public:
             sf::Event event;
             while (window.pollEvent(event)) {
                 if (event.type == sf::Event::Closed) {
-                    window.close();
+                    cleanup();
                 }
                 if (event.type == sf::Event::KeyPressed) {
                     if (!gameStarted) {
@@ -485,7 +483,7 @@ public:
                         }
                     }
                     if (event.key.code == sf::Keyboard::Delete || event.key.code == sf::Keyboard::BackSpace) {
-                        window.close();
+                        cleanup();
                     }
                 }
             }
@@ -552,7 +550,20 @@ public:
             window.display();
         }
     }
+
+    void cleanup() {
+        font.~Font();
+        scoreText.~Text();
+        highScoreText.~Text();
+        menuText.~Text();
+        settingsText.~Text();
+        leaderboardText.~Text();
+        // delete outstanding objects
+        delete this;
+        window.close();
+    }
 };
+
 // Add left/right boolean arg
 int main(int argc, char** argv) {
     std::string left;
@@ -572,7 +583,7 @@ int main(int argc, char** argv) {
 
     try {
         SnakeGame game(left);
-        game.run();
+        game.run();        
     } catch (const std::exception& e) {
         std::cout << "An error occurred: " << e.what() << std::endl;
         return 1;
