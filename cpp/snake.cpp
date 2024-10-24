@@ -462,19 +462,19 @@ public:
                         }
                     } else if (gameStarted && !gameOver) {
                         if ((event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::W) &&
-                         ((moveQueue.empty() && direction != Direction::Down) || moveQueue.back() != Direction::Down)) {
+                         ((moveQueue.empty() && direction != Direction::Down) || (!moveQueue.empty() && moveQueue.back() != Direction::Down))) {
                             moveQueue.push(Direction::Up);
                         }
                         if ((event.key.code == sf::Keyboard::Down || event.key.code == sf::Keyboard::S) &&
-                         ((moveQueue.empty() && direction != Direction::Up) || moveQueue.back() != Direction::Up)) {
+                         ((moveQueue.empty() && direction != Direction::Up) || (!moveQueue.empty() && moveQueue.back() != Direction::Up))) {
                             moveQueue.push(Direction::Down);
                         }
                         if ((event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::A) &&
-                         ((moveQueue.empty() && direction != Direction::Right) || moveQueue.back() != Direction::Right)) {
+                         ((moveQueue.empty() && direction != Direction::Right) || (!moveQueue.empty() && moveQueue.back() != Direction::Right))) {
                             moveQueue.push(Direction::Left);
                         }
                         if ((event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::D) &&
-                         ((moveQueue.empty() && direction != Direction::Left) || moveQueue.back() != Direction::Left)) {
+                         ((moveQueue.empty() && direction != Direction::Left) || (!moveQueue.empty() && moveQueue.back() != Direction::Left))) {
                             moveQueue.push(Direction::Right);
                         }
                     } else if (gameOver) {
