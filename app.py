@@ -25,7 +25,6 @@ class App:
         self.leaderboard = Leaderboard(self.window)
         self.controls = False
 
-
     def run(self):
         running = True
         frame = 1
@@ -55,7 +54,6 @@ class App:
                     elif self.curr_screen == "leaderboard":
                         pass
                     
-
             if frame * self.settings.fps / self.fps > 1:
                 match self.curr_screen:
                     case "home":
@@ -419,7 +417,6 @@ class SnakeGame(Background):
         self.window.blit(self.retry_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.85))
         self.window.blit(self.escape_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.9))
 
-
     def spawn_food(self):
         while True:
             food = (randint(1, GRID_WIDTH - 2), randint(1, GRID_HEIGHT - 2))
@@ -463,8 +460,6 @@ class SnakeGame(Background):
             self.move_queue.append(LEFT)
         elif (key == pygame.K_UP or key == pygame.K_w) and ((not self.move_queue and self.direction != DOWN) or (self.move_queue and self.move_queue[-1] != DOWN)):
             self.move_queue.append(UP)
-        
-        
     
     def play(self):
         self.game_over = not self.move()
