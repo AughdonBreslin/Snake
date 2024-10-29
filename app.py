@@ -28,6 +28,7 @@ class App:
     def run(self):
         running = True
         frame = 1
+        time = 0
         while running:
             self.clock.tick(self.fps)
             for event in pygame.event.get():
@@ -37,24 +38,24 @@ class App:
                             running = False
                         case pygame.K_SPACE | pygame.K_RETURN:
                             self.curr_screen = "game"
-                            self.background.draw_background()
                         case pygame.K_q:
+                            self.background.draw_background()
+                            self.game.reset()
                             self.curr_screen = "settings"
-                            self.background.draw_background()
                         case pygame.K_LALT | pygame.K_RALT:
+                            self.game.reset()
                             self.curr_screen = "leaderboard"
-                            self.background.draw_background()
                         case pygame.K_ESCAPE:
                             self.curr_screen = "home"
-                            self.background.draw_background()
                     if self.curr_screen == "game":
                         self.game.event(event.key)
                     elif self.curr_screen == "settings":
                         self.settings.event(event.key)
                     elif self.curr_screen == "leaderboard":
                         pass
-                    
-            if frame * self.settings.fps / self.fps > 1:
+            
+            print(f"FPS: {self.clock.get_fps():.2f}, igFPS: {self.settings.fps} Move Queue: {self.game.move_queue}")
+            if time / self.fps > frame:
                 match self.curr_screen:
                     case "home":
                         self.home.draw_background()
@@ -66,14 +67,12 @@ class App:
                         self.leaderboard.draw_background()
                     case "controls":
                         pass
-                frame = 1
-            else:
                 frame += 1
+            time += self.settings.fps
             
             # Updates screen
             pygame.display.flip()
             # Stats
-            # print(f"FPS: {self.clock.get_fps():.2f}, Move Queue: {self.game.move_queue}")
 
         pygame.quit()
 
@@ -362,7 +361,7 @@ TURN_LEFT, STRAIGHT, TURN_RIGHT = Action.TURN_LEFT, Action.STRAIGHT, Action.TURN
 class SnakeGame(Background):
     def __init__(self, window):
         super().__init__(window)
-        self.reset()
+        self.score = 0
         self.highscore = self.read_highscore()
         self.score_prefix = self.font.render("Score: ", True, (255, 255, 255))
         self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
@@ -370,6 +369,7 @@ class SnakeGame(Background):
         self.game_over_text = self.title_font.render("Game Over", True, (255, 255, 255))
         self.retry_text = self.font.render("SPACE or Enter to play again", True, (255, 255, 255))
         self.escape_text = self.font.render("ESC to return to menu", True, (255, 255, 255))
+        self.reset()
     
     def reset(self):
         self.snake = [(3, GRID_HEIGHT // 2), (2, GRID_HEIGHT // 2), (1, GRID_HEIGHT // 2)]
@@ -378,6 +378,8 @@ class SnakeGame(Background):
         self.food = self.spawn_food()
         self.score = 0
         self.game_over = False
+        self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
+
 
     def read_highscore(self):
         try:
