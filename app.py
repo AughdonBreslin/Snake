@@ -53,8 +53,8 @@ class App:
                         self.settings.event(event.key)
                     elif self.curr_screen == "leaderboard":
                         pass
-            
-            print(f"FPS: {self.clock.get_fps():.2f}, igFPS: {self.settings.fps} Move Queue: {self.game.move_queue}")
+            # Stats            
+            print(f"FPS: {self.clock.get_fps():.2f}, igFPS: {self.settings.fps} Move Queue: {self.game.move_queue}                                  ", end='\r')
             if time / self.fps > frame:
                 match self.curr_screen:
                     case "home":
@@ -72,7 +72,6 @@ class App:
             
             # Updates screen
             pygame.display.flip()
-            # Stats
 
         pygame.quit()
 
