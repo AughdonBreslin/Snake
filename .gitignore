@@ -1,3 +1,5 @@
 snake
 .vscode/
 logs/
+venv/
+__pycache__/

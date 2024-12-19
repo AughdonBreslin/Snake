@@ -34,7 +34,10 @@ class AdjacencyList():
 
     def __index__(self, node):
         return self.adj_list[node]
-
+    
+    def __getitem__(self, node):
+        return self.adj_list[node]
+    
     def __repr__(self):
         res = ""
         for node in self.adj_list:
@@ -98,7 +101,7 @@ class AdjacencyList():
         raise Exception(f"Exhausted search via neither loop nor end?")
 
 class HamiltonianCycle():
-    def __init__(self, r, c):
+    def __init__(self, r, c, cycles=1):
         self.r = r
         self.c = c
         self.transpose = r & 1
@@ -108,6 +111,7 @@ class HamiltonianCycle():
         else:
             self.grid = np.array([[Node(i*self.c + j, (i, j)) for j in range(self.c)] for i in range(self.r)])
         self.adj_list = AdjacencyList()
+        self.grid, self.adj_list = self.get_cycle(cycles)
 
     def _go_left(self, i):
         self.adj_list.set_adjs(self.grid[i+1][self.c-1], [self.grid[i][self.c-1], self.grid[i+1][self.c-2]])
@@ -201,7 +205,7 @@ class HamiltonianCycle():
                 raise Exception(f"Seems to not be possible.")
             successes += 1
         self.adj_list.add_adj(ends[0], ends[1])
-        print(f"\nCycle found in {successes} backbites!")
+        # print(f"Cycle found in {successes} backbites!")
         return self.grid, self.adj_list
 
     def randomize_ham_cycle(self):
@@ -215,10 +219,8 @@ class HamiltonianCycle():
 
     def get_cycle(self, cycles):
         self.generate_base()
-        self.print_path_as_ascii()
         for _ in range(cycles):
             self.grid, self.adj_list = self.randomize_ham_cycle()
-            self.print_path_as_ascii()
         if self.transpose:
             self.grid = np.transpose(self.grid)
             self.r, self.c = self.c, self.r
@@ -237,24 +239,26 @@ class HamiltonianCycle():
                     print(f"{' '*(length//2)}|{' '*((length-1)//2)}   " if self.adj_list.is_adj(self.grid[i][j], self.grid[i+1][j]) else f"   {' '*length}", end='')
                 print()
     
-    def print_cycle_positions(self, start_pos):
-        pos = start_pos
-        from_pos = start_pos
-        print(f"{pos}", end='')
-        for _ in range(self.r*self.c-1):
-            from_pos = pos
-            pos = self.adj_list.get(pos)[0]
-            if pos == from_pos:
-                pos = self.adj_list.get(pos)[1]
-            print(f" -> {pos}", end='')
-        print()
+    def cycle_positions(self, start_pos=None):
+        if start_pos:
+            curr_pos = self.grid[start_pos]
+        else:
+            curr_pos = self.grid[random.randint(0, self.r - 1)][random.randint(0, self.c - 1)]
+        prev_pos = -1
+        res = []
+        # print(f"{curr_pos}", end='')
+        for _ in range(self.r*self.c):
+            temp = curr_pos
+            curr_pos = [step for step in self.adj_list[curr_pos] if step != prev_pos][0]
+            prev_pos = temp
+            res.append(curr_pos.pos)
+            # print(f" -> {curr_pos}", end='')
+        return res
 
 if __name__ == "__main__":
-    r, c = 3, 20
+    r, c = 3, 20 
     cycles = 1
-
     ham = HamiltonianCycle(r, c)
-    grid, adj_list = ham.get_cycle(cycles)
     print("End Result:")
-    ham.print_path_as_ascii()
-    ham.print_cycle_positions(0)
+    res = ham.cycle_positions()
+    print(res)

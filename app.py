@@ -4,6 +4,8 @@ import pygame
 from enum import Enum
 from random import randint
 
+from graph import HamiltonianCycle
+
 CELL_SIZE = 20
 WINDOW_WIDTH, WINDOW_HEIGHT = 440, 440
 GRID_WIDTH, GRID_HEIGHT = WINDOW_WIDTH // CELL_SIZE, WINDOW_HEIGHT // CELL_SIZE
@@ -110,89 +112,6 @@ class Background:
             text_surface = self.font.render(text, True, (255, 255, 255))
             self.window.blit(text_surface, (x, y))
 
-HAMILTONIAN_CYCLE = [
-    ( 7,  9), ( 7, 10), ( 7, 11), ( 7, 12), ( 8, 12),
-    ( 8, 11), ( 8, 10), ( 8,  9), ( 8,  8), ( 9,  8),
-    ( 9,  9), ( 9, 10), (10, 10), (11, 10), (11, 11),
-    (11, 12), (11, 13), (11, 14), (10, 14), (10, 13),
-    (10, 12), (10, 11), ( 9, 11), ( 9, 12), ( 9, 13),
-    ( 8, 13), ( 8, 14), ( 9, 14), ( 9, 15), (10, 15),
-    (11, 15), (12, 15), (12, 14), (13, 14), (14, 14),
-    (15, 14), (15, 13), (14, 13), (14, 12), (14, 11),
-    (13, 11), (13, 12), (13, 13), (12, 13), (12, 12),
-    (12, 11), (12, 10), (13, 10), (14, 10), (15, 10),
-    (15, 11), (15, 12), (16, 12), (16, 11), (16, 10),
-    (16,  9), (15,  9), (15,  8), (15,  7), (14,  7),
-    (14,  8), (14,  9), (13,  9), (13,  8), (13,  7),
-    (13,  6), (12,  6), (12,  7), (11,  7), (11,  8),
-    (12,  8), (12,  9), (11,  9), (10,  9), (10,  8),
-    (10,  7), ( 9,  7), ( 8,  7), ( 7,  7), ( 6,  7),
-    ( 6,  6), ( 6,  5), ( 7,  5), ( 7,  6), ( 8,  6),
-    ( 9,  6), (10,  6), (11,  6), (11,  5), (10,  5),
-    (10,  4), ( 9,  4), ( 9,  5), ( 8,  5), ( 8,  4),
-    ( 8,  3), ( 7,  3), ( 7,  4), ( 6,  4), ( 6,  3),
-    ( 5,  3), ( 4,  3), ( 4,  2), ( 3,  2), ( 2,  2),
-    ( 2,  1), ( 2,  0), ( 3,  0), ( 3,  1), ( 4,  1),
-    ( 4,  0), ( 5,  0), ( 6,  0), ( 6,  1), ( 5,  1),
-    ( 5,  2), ( 6,  2), ( 7,  2), ( 8,  2), ( 8,  1),
-    ( 7,  1), ( 7,  0), ( 8,  0), ( 9,  0), ( 9,  1),
-    (10,  1), (10,  0), (11,  0), (12,  0), (13,  0),
-    (13,  1), (13,  2), (13,  3), (12,  3), (12,  2),
-    (12,  1), (11,  1), (11,  2), (10,  2), ( 9,  2),
-    ( 9,  3), (10,  3), (11,  3), (11,  4), (12,  4),
-    (12,  5), (13,  5), (13,  4), (14,  4), (14,  3),
-    (14,  2), (14,  1), (14,  0), (15,  0), (15,  1),
-    (15,  2), (15,  3), (15,  4), (16,  4), (16,  3),
-    (17,  3), (18,  3), (18,  2), (17,  2), (16,  2),
-    (16,  1), (16,  0), (17,  0), (17,  1), (18,  1),
-    (18,  0), (19,  0), (19,  1), (19,  2), (19,  3),
-    (19,  4), (18,  4), (17,  4), (17,  5), (16,  5),
-    (15,  5), (14,  5), (14,  6), (15,  6), (16,  6),
-    (17,  6), (18,  6), (18,  5), (19,  5), (19,  6),
-    (19,  7), (18,  7), (17,  7), (16,  7), (16,  8),
-    (17,  8), (18,  8), (19,  8), (19,  9), (18,  9),
-    (17,  9), (17, 10), (18, 10), (19, 10), (19, 11),
-    (19, 12), (19, 13), (19, 14), (19, 15), (19, 16),
-    (18, 16), (18, 15), (17, 15), (17, 14), (18, 14),
-    (18, 13), (18, 12), (18, 11), (17, 11), (17, 12),
-    (17, 13), (16, 13), (16, 14), (16, 15), (15, 15),
-    (15, 16), (16, 16), (17, 16), (17, 17), (17, 18),
-    (18, 18), (18, 17), (19, 17), (19, 18), (19, 19),
-    (18, 19), (17, 19), (16, 19), (16, 18), (16, 17),
-    (15, 17), (15, 18), (15, 19), (14, 19), (14, 18),
-    (13, 18), (13, 19), (12, 19), (12, 18), (11, 18),
-    (11, 19), (10, 19), (10, 18), (10, 17), (11, 17),
-    (12, 17), (13, 17), (14, 17), (14, 16), (14, 15),
-    (13, 15), (13, 16), (12, 16), (11, 16), (10, 16),
-    ( 9, 16), ( 8, 16), ( 8, 15), ( 7, 15), ( 7, 14),
-    ( 7, 13), ( 6, 13), ( 5, 13), ( 5, 12), ( 6, 12),
-    ( 6, 11), ( 5, 11), ( 4, 11), ( 4, 12), ( 4, 13),
-    ( 3, 13), ( 3, 12), ( 3, 11), ( 3, 10), ( 4, 10),
-    ( 5, 10), ( 6, 10), ( 6,  9), ( 5,  9), ( 4,  9),
-    ( 3,  9), ( 2,  9), ( 1,  9), ( 1, 10), ( 2, 10),
-    ( 2, 11), ( 1, 11), ( 1, 12), ( 2, 12), ( 2, 13),
-    ( 2, 14), ( 2, 15), ( 1, 15), ( 1, 16), ( 1, 17),
-    ( 1, 18), ( 2, 18), ( 3, 18), ( 3, 17), ( 2, 17),
-    ( 2, 16), ( 3, 16), ( 3, 15), ( 3, 14), ( 4, 14),
-    ( 4, 15), ( 5, 15), ( 5, 14), ( 6, 14), ( 6, 15),
-    ( 6, 16), ( 7, 16), ( 7, 17), ( 8, 17), ( 9, 17),
-    ( 9, 18), ( 9, 19), ( 8, 19), ( 8, 18), ( 7, 18),
-    ( 7, 19), ( 6, 19), ( 6, 18), ( 6, 17), ( 5, 17),
-    ( 5, 16), ( 4, 16), ( 4, 17), ( 4, 18), ( 5, 18),
-    ( 5, 19), ( 4, 19), ( 3, 19), ( 2, 19), ( 1, 19),
-    ( 0, 19), ( 0, 18), ( 0, 17), ( 0, 16), ( 0, 15),
-    ( 0, 14), ( 1, 14), ( 1, 13), ( 0, 13), ( 0, 12),
-    ( 0, 11), ( 0, 10), ( 0,  9), ( 0,  8), ( 0,  7),
-    ( 0,  6), ( 1,  6), ( 1,  7), ( 1,  8), ( 2,  8),
-    ( 2,  7), ( 2,  6), ( 2,  5), ( 2,  4), ( 1,  4),
-    ( 1,  5), ( 0,  5), ( 0,  4), ( 0,  3), ( 0,  2),
-    ( 0,  1), ( 0,  0), ( 1,  0), ( 1,  1), ( 1,  2),
-    ( 1,  3), ( 2,  3), ( 3,  3), ( 3,  4), ( 3,  5),
-    ( 4,  5), ( 4,  4), ( 5,  4), ( 5,  5), ( 5,  6),
-    ( 5,  7), ( 4,  7), ( 4,  6), ( 3,  6), ( 3,  7),
-    ( 3,  8), ( 4,  8), ( 5,  8), ( 6,  8), ( 7,  8)
-]
-
 class Home(Background):
     def __init__(self, window):
         super().__init__(window)
@@ -201,19 +120,35 @@ class Home(Background):
         self.leaderboard_text = self.font.render("Alt to view leaderboards", True, (255, 255, 255))
         self.settings_text = self.font.render("Q to enter settings", True, (255, 255, 255))
         self.exit_text = self.font.render("Backspace/Delete to exit", True, (255, 255, 255))
-    
+        self.hamiltonian_cycle = HamiltonianCycle(GRID_HEIGHT - 2, GRID_WIDTH - 2, 25).cycle_positions()
+        self.offset = 0
+        self.snake_len = 3
+        self.food = (randint(0, GRID_HEIGHT - 2 - 1), randint(0, GRID_WIDTH - 2 - 1))
+
+
     def draw_background(self):
         super().draw_background()
 
-        for i in range(8):
-            pygame.draw.rect(self.window, (150 + 100*i/8, 0, 0), (5 * CELL_SIZE, (5 + i) * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-
-        for i in range(4):
-            pygame.draw.rect(self.window, (0, 150 + 100*i/4, 0), ((12 + i) * CELL_SIZE, 14 * CELL_SIZE, CELL_SIZE, CELL_SIZE))
-
-        for i in range(10):
-            pygame.draw.rect(self.window, (0, 0, 250 - 100*i/10), (min(14 + i, 17) * CELL_SIZE, min(9, 12 - i) * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        snake_pos = []
+        for i in range(self.snake_len):
+            index = (i + self.offset) % CELL_COUNT
+            pos = self.hamiltonian_cycle[index]
+            if pos == self.food and i == self.snake_len - 1:
+                self.snake_len += 1
+                break
+            snake_pos.append(pos)
+            pygame.draw.rect(self.window, (0, 75 + 125*i/self.snake_len, 0), ((pos[0] + 1) * CELL_SIZE, (pos[1] + 1) * CELL_SIZE, CELL_SIZE, CELL_SIZE))
         
+        if self.snake_len == CELL_COUNT:
+            self.snake_len = 3
+            self.hamiltonian_cycle = HamiltonianCycle(GRID_HEIGHT - 2, GRID_WIDTH - 2, 25).cycle_positions()
+
+        while self.food in snake_pos:
+            self.food = (randint(0, GRID_HEIGHT - 2 - 1), randint(0, GRID_WIDTH - 2 - 1))
+        pygame.draw.rect(self.window, (200, 0, 0), ((self.food[0] + 1) * CELL_SIZE, (self.food[1] + 1) * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+
+        self.offset = (self.offset + 1) % CELL_COUNT
+
         self.window.blit(self.snake_text, (WINDOW_WIDTH * 0.36, WINDOW_HEIGHT * 0.1))
         self.window.blit(self.start_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.75))
         self.window.blit(self.leaderboard_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.80))
@@ -230,17 +165,18 @@ class Settings(Background):
         self.difficulty_text = self.font.render("Difficulty: 1 2 3 4 5 6 7 8 9 0", True, (255, 255, 255))
         self.selected_text = self.font.render(f"{self.fps//5%10}", True, (0, 255, 0))
         self.escape_text = self.font.render("ESC to return to menu", True, (255, 255, 255))
-    
+        self.hamiltonian_cycle = HamiltonianCycle(GRID_HEIGHT - 2, GRID_WIDTH - 2, 25).cycle_positions()
+
     def draw_background(self):
         for i in range(8):
             progress = i / 8
             for j in range(10):
                 color = ((i>>2&1) * (150 + 100 * j/10), (i>>1&1) * (150 + 100 * j/10), (i&1) * (150 + 100 * j/10))
-                x = (HAMILTONIAN_CYCLE[int(progress * CELL_COUNT + j + self.offset) % CELL_COUNT][0] + 1) * CELL_SIZE
-                y = (HAMILTONIAN_CYCLE[int(progress * CELL_COUNT + j + self.offset) % CELL_COUNT][1] + 1) * CELL_SIZE
+                x = (self.hamiltonian_cycle[int(progress * CELL_COUNT + j + self.offset) % CELL_COUNT][0] + 1) * CELL_SIZE
+                y = (self.hamiltonian_cycle[int(progress * CELL_COUNT + j + self.offset) % CELL_COUNT][1] + 1) * CELL_SIZE
                 pygame.draw.rect(self.window, color, (x, y, CELL_SIZE, CELL_SIZE))
-            x = (HAMILTONIAN_CYCLE[int(progress * CELL_COUNT - 1 + self.offset) % CELL_COUNT][0] + 1) * CELL_SIZE
-            y = (HAMILTONIAN_CYCLE[int(progress * CELL_COUNT - 1 + self.offset) % CELL_COUNT][1] + 1) * CELL_SIZE
+            x = (self.hamiltonian_cycle[int(progress * CELL_COUNT - 1 + self.offset) % CELL_COUNT][0] + 1) * CELL_SIZE
+            y = (self.hamiltonian_cycle[int(progress * CELL_COUNT - 1 + self.offset) % CELL_COUNT][1] + 1) * CELL_SIZE
             color = (40, 40, 40) if (x + y) / 20 % 2 == 0 else (50, 50, 50)
             pygame.draw.rect(self.window, color, (x, y, CELL_SIZE, CELL_SIZE))
         self.offset = (self.offset + 1) % CELL_COUNT
