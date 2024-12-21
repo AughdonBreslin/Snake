@@ -343,7 +343,7 @@ class SnakeGame(Background):
         for i in range(1, GRID_WIDTH - 1):
             for j in range(1, GRID_HEIGHT - 1):
                 distance = min(min(i, GRID_WIDTH - i - 1), min(j, GRID_HEIGHT - j - 1))
-                color = 120 - distance * 10
+                color = max(0,  120 - distance * 10)
                 pygame.draw.rect(self.window, (color + randint(0, 5), color + randint(0, 5), color + randint(0, 5)),
                                  (i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE))
                 

@@ -254,11 +254,3 @@ class HamiltonianCycle():
             res.append(curr_pos.pos)
             # print(f" -> {curr_pos}", end='')
         return res
-
-if __name__ == "__main__":
-    r, c = 3, 20 
-    cycles = 1
-    ham = HamiltonianCycle(r, c)
-    print("End Result:")
-    res = ham.cycle_positions()
-    print(res)
