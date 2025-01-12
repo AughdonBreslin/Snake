@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pygame
 
 from enum import Enum
@@ -372,18 +373,25 @@ class SnakeGame(Background):
             x -= 1
         elif self.direction == UP:
             y -= 1
+
+        # Pop the tail so the snake can move into where its tail is leaving
+        tail = self.snake.pop()
         if (x, y) in self.snake or x == 0 or x == GRID_WIDTH - 1 or y == 0 or y == GRID_HEIGHT - 1:
-            return False
+            return True, -1
+        
+        # Add the new head
         self.snake.insert(0, (x, y))
         if (x, y) == self.food:
+            self.snake.append(tail)
             self.food = self.spawn_food()
             self.score += 1
             self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
-            self.highscore = max(self.highscore, self.score)
-            self.highscore_text = self.font.render(f"Highscore: {self.highscore}", True, (255, 255, 255))
-        else:
-            self.snake.pop()
-        return True
+            if self.score > self.highscore:
+                self.highscore = self.score
+                self.highscore_text = self.font.render(f"Highscore: {self.highscore}", True, (255, 255, 255))
+            
+            return False, 1
+        return False, -0.01
     
     def event(self, key):
         if self.game_over:
@@ -397,9 +405,35 @@ class SnakeGame(Background):
             self.move_queue.append(LEFT)
         elif (key == pygame.K_UP or key == pygame.K_w) and ((not self.move_queue and self.direction != DOWN) or (self.move_queue and self.move_queue[-1] != DOWN)):
             self.move_queue.append(UP)
+
+    def get_state(self):
+        # 4-channel state representation
+        state = np.zeros((4, GRID_HEIGHT, GRID_WIDTH))
+
+        # Channel 0: Walls
+        state[0, 0, :] = 1
+        state[0, -1, :] = 1
+        state[0, :, 0] = 1
+        state[0, :, -1] = 1
+
+        # Channel 1: Snake body (no head :pensive:)
+        for cell in self.snake[1:]:
+            state[1, *cell] = 1
+
+        # Channel 2: Snake head (:triumph:)
+        state[2, *self.snake[0]] = 1
+
+        # Channel 3: Food
+        state[3, *self.food] = 1
+
+        return state
+
+    def get_valid_inputs(self):
+        return [pygame.K_RIGHT, pygame.K_DOWN, pygame.K_LEFT, pygame.K_UP]
     
     def play(self):
-        self.game_over = not self.move()
+        if not self.game_over:
+            self.game_over, self.status = self.move()
         if self.game_over:
             self.write_highscore(self.highscore)
             self.draw_game_over()
