@@ -11,7 +11,7 @@ CELL_SIZE = 20
 WINDOW_WIDTH, WINDOW_HEIGHT = 440, 440
 GRID_WIDTH, GRID_HEIGHT = WINDOW_WIDTH // CELL_SIZE, WINDOW_HEIGHT // CELL_SIZE
 CELL_COUNT = (GRID_WIDTH - 2) * (GRID_HEIGHT - 2)
-PATH = "/mnt/c/Users/aughb/Personal_Projects/Snake/"
+PATH = __file__[:__file__.rfind('/')]
 
 class App:
     def __init__(self):
@@ -441,5 +441,6 @@ class SnakeGame(Background):
             self.draw_background()
 
 if __name__ == "__main__":
+    print(__file__)
     app = App()
     app.run()
