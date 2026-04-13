@@ -19,7 +19,7 @@ class App:
         self.window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.NOFRAME)
         self.clock = pygame.time.Clock()
 
-        self.fps = 60
+        self.fps = 0
         self.curr_screen = "home"
         self.background = Background(self.window)
         self.home = Home(self.window)
@@ -30,10 +30,9 @@ class App:
 
     def run(self):
         running = True
-        frame = 1
         time = 0
         while running:
-            self.clock.tick(self.fps)
+            time += self.clock.tick(self.fps)
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
                     match event.key:
@@ -58,7 +57,7 @@ class App:
                         pass
             # Stats            
             print(f"FPS: {self.clock.get_fps():.2f}, igFPS: {self.settings.fps} Move Queue: {self.game.move_queue}                                  ", end='\r')
-            if time / self.fps > frame:
+            if self.settings.fps == 0 or time > 1000/self.settings.fps:
                 match self.curr_screen:
                     case "home":
                         self.home.draw_background()
@@ -70,9 +69,8 @@ class App:
                         self.leaderboard.draw_background()
                     case "controls":
                         pass
-                frame += 1
-            time += self.settings.fps
-            
+                if self.settings.fps != 0:
+                    time %= 1000/self.settings.fps
             # Updates screen
             pygame.display.flip()
 
@@ -161,7 +159,6 @@ class Settings(Background):
         super().__init__(window)
         self.offset = 0
         self.fps = self.read_settings()
-        self.selected = [10 + self.fps * 2//5, 11 + self.fps * 2//5]
         self.settings_text = self.title_font.render("Settings", True, (255, 255, 255))
         self.difficulty_text = self.font.render("Difficulty: 1 2 3 4 5 6 7 8 9 0", True, (255, 255, 255))
         self.selected_text = self.font.render(f"{self.fps//5%10}", True, (0, 255, 0))
@@ -184,7 +181,7 @@ class Settings(Background):
 
         self.window.blit(self.settings_text, (WINDOW_WIDTH * 0.30, WINDOW_HEIGHT * 0.1))
         self.window.blit(self.difficulty_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.4))
-        self.window.blit(self.selected_text, (WINDOW_WIDTH * 0.1 + self.difficulty_text.get_width() - self.selected_text.get_width() * (50 - self.fps)/2.5 - 12, WINDOW_HEIGHT * 0.4))
+        self.window.blit(self.selected_text, (WINDOW_WIDTH * 0.1 + self.difficulty_text.get_width() - self.selected_text.get_width() * (50 - (self.fps if self.fps else 50))/2.5 - 12, WINDOW_HEIGHT * 0.4))
 
         self.window.blit(self.escape_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.9))
 
@@ -222,7 +219,7 @@ class Settings(Background):
             case pygame.K_9:
                 self.fps = 45
             case pygame.K_0:
-                self.fps = 50
+                self.fps = 0
 
         self.selected_text = self.font.render(f"{self.fps//5%10}", True, (0, 255, 0))
         self.write_settings(self.fps)
@@ -405,6 +402,10 @@ class SnakeGame(Background):
             self.move_queue.append(LEFT)
         elif (key == pygame.K_UP or key == pygame.K_w) and ((not self.move_queue and self.direction != DOWN) or (self.move_queue and self.move_queue[-1] != DOWN)):
             self.move_queue.append(UP)
+
+    def step(self, action):
+        self.move_queue.append(self.direction + action)
+        return self.move()
 
     def get_state(self):
         # 4-channel state representation
