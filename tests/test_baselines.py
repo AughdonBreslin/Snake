@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from snake.baselines import BFSSafeAgent, GreedyAgent, RandomAgent, survivable
+from snake.baselines import BFSSafeAgent, GreedyAgent, HamiltonianAgent, RandomAgent, survivable
 from snake.env import DOWN, RIGHT, SnakeEnv
 
 
@@ -73,3 +74,20 @@ def test_bfs_only_returns_legal_actions():
         action = agent.act(env)
         assert env.legal_actions()[action]
         env.step(action)
+
+
+def test_hamiltonian_solves_a_small_board():
+    env = SnakeEnv(6, np.random.default_rng(0), starvation_limit=None)
+    agent = HamiltonianAgent(size=6, seed=0)
+    for _ in range(10000):
+        if env.game_over:
+            break
+        env.step(agent.act(env))
+    assert env.death_cause == "solved"
+    assert env.length == 36
+
+
+def test_hamiltonian_rejects_odd_boards():
+    # A grid graph with both dimensions odd has no Hamiltonian cycle.
+    with pytest.raises(ValueError):
+        HamiltonianAgent(size=5, seed=0)

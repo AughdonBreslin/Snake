@@ -7,11 +7,13 @@ BFS solver reach on the same seeds.
 
 from __future__ import annotations
 
+import random as _stdlib_random
 from collections import deque
 from typing import Protocol
 
 import numpy as np
 
+from graph import HamiltonianCycle
 from snake.env import DELTAS
 
 
@@ -187,3 +189,47 @@ class BFSSafeAgent:
 def _action_between(origin, target):
     delta = (target[0] - origin[0], target[1] - origin[1])
     return DELTAS.index(delta)
+
+
+class HamiltonianAgent:
+    """Follow a fixed Hamiltonian cycle. Perfect by construction, so it is the
+    ceiling every other agent is measured against.
+
+    graph.HamiltonianCycle uses the global random module, which is the one
+    documented exception to this package's no global randomness rule. The
+    global state is saved and restored around the one call that needs it, so
+    constructing this agent cannot change randomness anywhere else, such as
+    app.py's menu, which imports from the same global module.
+    """
+
+    def __init__(self, size, seed):
+        if size % 2 == 1:
+            raise ValueError(
+                f"size {size} is odd; a grid graph with both dimensions odd has "
+                "no Hamiltonian cycle"
+            )
+
+        state = _stdlib_random.getstate()
+        _stdlib_random.seed(seed)
+        try:
+            cycle = HamiltonianCycle(size, size, 1).cycle_positions()
+        finally:
+            _stdlib_random.setstate(state)
+
+        # graph.py yields (row, col), both zero based over the playable area.
+        # Playable coordinates are (x, y) = (col + 1, row + 1).
+        self.cells = [(col + 1, row + 1) for row, col in cycle]
+        self.order = {cell: i for i, cell in enumerate(self.cells)}
+
+    def act(self, env):
+        legal = _legal(env)
+        head = env.snake[0]
+        nxt = self.cells[(self.order[head] + 1) % len(self.cells)]
+        action = _action_between(head, nxt)
+        if action in legal and survivable(env, action):
+            return action
+        # The env starts the snake in a straight line that is not aligned to
+        # the cycle, so the first move or two may deviate. Once the body
+        # trails along the cycle the successor cell is always free.
+        safe = [a for a in legal if survivable(env, a)]
+        return int(safe[0] if safe else legal[0])
