@@ -1,5 +1,5 @@
 import app
-from app import DOWN, LEFT, RIGHT, UP
+from app import DOWN, RIGHT, UP
 
 
 def test_reset_places_three_cells_facing_right(game):
