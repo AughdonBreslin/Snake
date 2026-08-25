@@ -12,11 +12,16 @@ def test_snakegame_holds_an_env(game):
 
 
 def test_snakegame_has_no_rule_logic_left():
-    # If any of these names still exist on SnakeGame, rules were left behind and
-    # the two definitions will drift.
-    source = inspect.getsource(app.SnakeGame)
-    for leftover in ("def spawn_food", "GRID_WIDTH - 1", "self.snake.pop()"):
-        assert leftover not in source, f"rule logic still in SnakeGame: {leftover}"
+    # Rules live in SnakeEnv. If any of this is still in the methods that drive a
+    # move, there are two definitions of the game and they will silently drift.
+    # Scoped to the rule-bearing methods on purpose: the rendering methods
+    # legitimately mention grid bounds, so scanning the whole class would flag
+    # draw_game_over's border loop.
+    assert not hasattr(app.SnakeGame, "spawn_food")
+    for name in ("move", "step_action", "reset", "reset_with_env"):
+        source = inspect.getsource(getattr(app.SnakeGame, name))
+        for leftover in ("GRID_WIDTH - 1", "GRID_HEIGHT - 1", "self.snake.pop()"):
+            assert leftover not in source, f"rule logic in SnakeGame.{name}: {leftover}"
 
 
 def test_the_renderer_never_truncates_on_starvation(game):

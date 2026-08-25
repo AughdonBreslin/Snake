@@ -348,7 +348,7 @@ class SnakeGame(Background):
         self.window.blit(self.highscore_text, (WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * -0.01))
 
     def draw_game_over(self):
-        for i in range(1, GRID_WIDTH-1):
+        for i in range(1, GRID_WIDTH - 1):
             for j in range(1, GRID_HEIGHT - 1):
                 distance = min(min(i, GRID_WIDTH - i - 1), min(j, GRID_HEIGHT - j - 1))
                 color = max(0,  120 - distance * 10)
