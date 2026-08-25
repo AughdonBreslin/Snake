@@ -2,10 +2,10 @@ import os
 import numpy as np
 import pygame
 
-from enum import Enum
 from random import randint
 
 from graph import HamiltonianCycle
+from snake.env import DOWN, LEFT, RIGHT, UP, SnakeEnv
 
 CELL_SIZE = 20
 WINDOW_WIDTH, WINDOW_HEIGHT = 440, 440
@@ -265,54 +265,64 @@ class Leaderboard(Background):
         self.window.blit(self.third_place, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.5))
         self.window.blit(self.escape_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.9))
 
-class Direction(Enum):
-    RIGHT = 0
-    DOWN = 1
-    LEFT = 2
-    UP = 3
-
-    def __repr__(self):
-        return self.name
-
-    def __add__(self, other):
-        return (self.value + other) % 4
-
-class Action(Enum):
-    TURN_LEFT = -1
-    STRAIGHT = 0
-    TURN_RIGHT = 1
-
-    def __repr__(self):
-        return self.name
-
-    def __radd__(self, other):
-        return other + self.value
-    
-RIGHT, DOWN, LEFT, UP = Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP
-TURN_LEFT, STRAIGHT, TURN_RIGHT = Action.TURN_LEFT, Action.STRAIGHT, Action.TURN_RIGHT
-
 class SnakeGame(Background):
     def __init__(self, window):
         super().__init__(window)
-        self.score = 0
         self.highscore = self.read_highscore()
         self.score_prefix = self.font.render("Score: ", True, (255, 255, 255))
-        self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
         self.highscore_text = self.font.render(f"Highscore: {self.highscore}", True, (255, 255, 255))
         self.game_over_text = self.title_font.render("Game Over", True, (255, 255, 255))
         self.retry_text = self.font.render("SPACE or Enter to play again", True, (255, 255, 255))
         self.escape_text = self.font.render("ESC to return to menu", True, (255, 255, 255))
         self.reset()
-    
+
     def reset(self):
-        self.snake = [(3, GRID_HEIGHT // 2), (2, GRID_HEIGHT // 2), (1, GRID_HEIGHT // 2)]
-        self.direction = RIGHT
+        self.reset_with_env(
+            SnakeEnv(GRID_WIDTH - 2, np.random.default_rng(), starvation_limit=None)
+        )
+
+    def reset_with_env(self, env):
+        self.env = env
         self.move_queue = []
-        self.food = self.spawn_food()
-        self.score = 0
-        self.game_over = False
         self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
 
+    @property
+    def snake(self):
+        return self.env.snake
+
+    @property
+    def food(self):
+        return self.env.food
+
+    @property
+    def score(self):
+        return self.env.score
+
+    @property
+    def game_over(self):
+        return self.env.game_over
+
+    @property
+    def direction(self):
+        return self.env.direction
+
+    def step_action(self, action):
+        """Apply one move and refresh the score text. Returns whether the game
+        ended. All rules live in SnakeEnv."""
+        if self.env.game_over:
+            return True
+        done = self.env.step(action)
+        self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
+        if self.score > self.highscore:
+            self.highscore = self.score
+            self.highscore_text = self.font.render(
+                f"Highscore: {self.highscore}", True, (255, 255, 255)
+            )
+        return done
+
+    def move(self):
+        action = self.move_queue.pop(0) if self.move_queue else self.env.direction
+        return self.step_action(action)
 
     def read_highscore(self):
         try:
@@ -338,7 +348,7 @@ class SnakeGame(Background):
         self.window.blit(self.highscore_text, (WINDOW_WIDTH * 0.5, WINDOW_HEIGHT * -0.01))
 
     def draw_game_over(self):
-        for i in range(1, GRID_WIDTH - 1):
+        for i in range(1, GRID_WIDTH-1):
             for j in range(1, GRID_HEIGHT - 1):
                 distance = min(min(i, GRID_WIDTH - i - 1), min(j, GRID_HEIGHT - j - 1))
                 color = max(0,  120 - distance * 10)
@@ -352,44 +362,6 @@ class SnakeGame(Background):
         self.window.blit(self.retry_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.85))
         self.window.blit(self.escape_text, (WINDOW_WIDTH * 0.1, WINDOW_HEIGHT * 0.9))
 
-    def spawn_food(self):
-        while True:
-            food = (randint(1, GRID_WIDTH - 2), randint(1, GRID_HEIGHT - 2))
-            if food not in self.snake:
-                return food
-    
-    def move(self):
-        if self.move_queue:
-            self.direction = self.move_queue.pop(0)
-        x, y = self.snake[0]
-        if self.direction == RIGHT:
-            x += 1
-        elif self.direction == DOWN:
-            y += 1
-        elif self.direction == LEFT:
-            x -= 1
-        elif self.direction == UP:
-            y -= 1
-
-        # Pop the tail so the snake can move into where its tail is leaving
-        tail = self.snake.pop()
-        if (x, y) in self.snake or x == 0 or x == GRID_WIDTH - 1 or y == 0 or y == GRID_HEIGHT - 1:
-            return True, -1
-        
-        # Add the new head
-        self.snake.insert(0, (x, y))
-        if (x, y) == self.food:
-            self.snake.append(tail)
-            self.food = self.spawn_food()
-            self.score += 1
-            self.score_text = self.font.render(str(self.score), True, (255, 255, 255))
-            if self.score > self.highscore:
-                self.highscore = self.score
-                self.highscore_text = self.font.render(f"Highscore: {self.highscore}", True, (255, 255, 255))
-            
-            return False, 1
-        return False, -0.01
-    
     def event(self, key):
         if self.game_over:
             if key == pygame.K_SPACE or key == pygame.K_RETURN:
@@ -403,38 +375,9 @@ class SnakeGame(Background):
         elif (key == pygame.K_UP or key == pygame.K_w) and ((not self.move_queue and self.direction != DOWN) or (self.move_queue and self.move_queue[-1] != DOWN)):
             self.move_queue.append(UP)
 
-    def step(self, action):
-        self.move_queue.append(self.direction + action)
-        return self.move()
-
-    def get_state(self):
-        # 4-channel state representation
-        state = np.zeros((4, GRID_HEIGHT, GRID_WIDTH))
-
-        # Channel 0: Walls
-        state[0, 0, :] = 1
-        state[0, -1, :] = 1
-        state[0, :, 0] = 1
-        state[0, :, -1] = 1
-
-        # Channel 1: Snake body (no head :pensive:)
-        for cell in self.snake[1:]:
-            state[1, *cell] = 1
-
-        # Channel 2: Snake head (:triumph:)
-        state[2, *self.snake[0]] = 1
-
-        # Channel 3: Food
-        state[3, *self.food] = 1
-
-        return state
-
-    def get_valid_inputs(self):
-        return [pygame.K_RIGHT, pygame.K_DOWN, pygame.K_LEFT, pygame.K_UP]
-    
     def play(self):
         if not self.game_over:
-            self.game_over, self.status = self.move()
+            self.move()
         if self.game_over:
             self.write_highscore(self.highscore)
             self.draw_game_over()
