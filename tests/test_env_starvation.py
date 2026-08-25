@@ -1,6 +1,6 @@
 import numpy as np
 
-from snake.env import DOWN, LEFT, RIGHT, SnakeEnv, default_starvation_limit
+from snake.env import DOWN, LEFT, RIGHT, UP, SnakeEnv, default_starvation_limit
 
 
 def test_default_limit_is_twice_the_board():
@@ -11,11 +11,9 @@ def test_default_limit_is_twice_the_board():
 def test_no_limit_means_no_truncation():
     env = SnakeEnv(8, np.random.default_rng(0), starvation_limit=None)
     env.food = (8, 8)
-    steps = 0
-    while not env.game_over and steps < 500:
+    for steps in range(300):
         env.step(_circle(steps))
-        steps += 1
-    assert env.death_cause != "starvation"
+    assert not env.game_over
 
 
 def test_the_limit_truncates_and_reports_starvation():
@@ -43,6 +41,7 @@ def test_eating_resets_the_starvation_counter():
 
 
 def _circle(step):
-    # A four move loop that never eats: right, down, left, up is illegal as a
-    # sequence because up reverses down, so use a wider rectangle.
-    return (RIGHT, RIGHT, DOWN, LEFT, LEFT, DOWN, RIGHT, RIGHT)[step % 8]
+    # A four-step cycle that orbits a 2x2 square indefinitely: right, down, left,
+    # up. No reversals at any consecutive pair including wrap. Never approaches a
+    # wall, so the episode runs until starvation_limit triggers (if set).
+    return (RIGHT, DOWN, LEFT, UP)[step % 4]
