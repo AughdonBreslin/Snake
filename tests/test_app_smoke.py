@@ -2,9 +2,16 @@
 
 This does not re-test snake rules (that is tests/test_app_rules_pinned.py and
 tests/test_env_rules.py). It proves that the pygame wiring around SnakeEnv
-still holds after the delegation refactor: screens switch, direction keys are
-accepted, score text is refreshed, and game over followed by a restart both
-work, all driven by synthetic pygame events rather than a human at a keyboard.
+still holds after the delegation refactor: screens switch, the full run loop
+does not raise, score text is refreshed, and game over followed by a restart
+both work, all driven by synthetic pygame events rather than a human at a
+keyboard.
+
+Steering itself (that each arrow key and its WASD alias actually turns the
+snake) is covered directly against SnakeGame by
+test_direction_updates_after_each_arrow_key and
+test_direction_updates_after_each_wasd_key below, which check game.direction
+after every single key rather than once at the end of a long script.
 """
 
 from collections import deque
@@ -50,7 +57,15 @@ def application(window, monkeypatch):
     return a
 
 
-def test_screens_switch_and_all_four_directions_steer(application, monkeypatch):
+def test_screens_switch_and_the_run_loop_does_not_raise(application, monkeypatch):
+    # This exercises the full App.run() loop across every screen transition,
+    # including the arrow keys reaching the game screen along the way. It does
+    # not itself assert anything about steering: the scripted turns below
+    # cycle RIGHT -> DOWN -> LEFT -> UP -> RIGHT, so the direction at the end
+    # is indistinguishable from the never-turned default, and a final-value
+    # check here would prove nothing. Per-key steering is covered separately
+    # by test_direction_updates_after_each_arrow_key and its WASD twin, which
+    # assert direction after each individual key.
     script = (
         [keydown(pygame.K_RETURN)]  # home -> game
         + [keydown(pygame.K_DOWN)]
@@ -69,9 +84,53 @@ def test_screens_switch_and_all_four_directions_steer(application, monkeypatch):
     application.run()  # must not raise
 
     assert application.curr_screen == "home"
-    # Direction changed at least once away from the reset default, proving the
-    # queued turns from the arrow keys above reached SnakeEnv through the game.
-    assert application.game.direction in (RIGHT, DOWN, LEFT, UP)
+
+
+def test_direction_updates_after_each_arrow_key(game):
+    # Drive SnakeGame directly rather than through App.run(), since the run
+    # loop gives no place to assert mid-script. Plant the snake in the middle
+    # of the board, alone, with food tucked in a far corner, so a full
+    # RIGHT -> DOWN -> LEFT -> UP -> RIGHT loop of turns can run without
+    # hitting a wall, running into its own body, or eating and growing.
+    mid = app.GRID_HEIGHT // 2
+    game.env.snake = deque([(mid, mid)])
+    game.env._occupied = set(game.env.snake)
+    game.env.direction = RIGHT
+    game.env.food = (1, 1)
+    game.move_queue = []
+
+    for key, expected in (
+        (pygame.K_DOWN, DOWN),
+        (pygame.K_LEFT, LEFT),
+        (pygame.K_UP, UP),
+        (pygame.K_RIGHT, RIGHT),
+    ):
+        game.event(key)
+        over = game.move()
+        assert over is False
+        assert game.direction == expected
+
+
+def test_direction_updates_after_each_wasd_key(game):
+    # Same legal turn sequence as the arrow-key test above, but through the
+    # WASD aliases that SnakeGame.event also accepts.
+    mid = app.GRID_HEIGHT // 2
+    game.env.snake = deque([(mid, mid)])
+    game.env._occupied = set(game.env.snake)
+    game.env.direction = RIGHT
+    game.env.food = (1, 1)
+    game.move_queue = []
+
+    for key, expected in (
+        (pygame.K_s, DOWN),
+        (pygame.K_a, LEFT),
+        (pygame.K_w, UP),
+        (pygame.K_d, RIGHT),
+    ):
+        game.event(key)
+        over = game.move()
+        assert over is False
+        assert game.direction == expected
 
 
 def test_game_over_then_restart(application):
