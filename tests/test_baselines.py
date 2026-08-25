@@ -1,7 +1,7 @@
 import numpy as np
 
 from snake.baselines import GreedyAgent, RandomAgent, survivable
-from snake.env import RIGHT, SnakeEnv
+from snake.env import DOWN, RIGHT, SnakeEnv
 
 
 def run(agent, size=6, seed=0, limit=2000):
@@ -40,12 +40,14 @@ def test_greedy_beats_random_over_many_games():
 
 
 def test_greedy_avoids_an_immediately_fatal_move_when_it_can():
-    # Food is straight ahead through the wall. Greedy must turn instead.
+    # RIGHT is the naively closest move to the food, but it collides with the
+    # snake's own body. Greedy must turn instead of taking the shortest path
+    # into itself.
     env = SnakeEnv(6, np.random.default_rng(0))
     env.snake.clear()
-    env.snake.extend([(6, 3), (5, 3), (4, 3)])
+    env.snake.extend([(3, 3), (3, 2), (4, 2), (4, 3), (4, 4)])
     env._occupied = set(env.snake)
-    env.direction = RIGHT
-    env.food = (6, 6)
+    env.direction = DOWN
+    env.food = (6, 3)
     action = GreedyAgent(np.random.default_rng(0)).act(env)
     assert survivable(env, action)

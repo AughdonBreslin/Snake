@@ -7,9 +7,22 @@ BFS solver reach on the same seeds.
 
 from __future__ import annotations
 
+from typing import Protocol
+
 import numpy as np
 
 from snake.env import DELTAS
+
+
+class Agent(Protocol):
+    """The contract every reference and learned agent implements.
+
+    An agent looks at the current environment state and returns one legal
+    action. It must never return an action that env.legal_actions() forbids.
+    """
+
+    def act(self, env) -> int:
+        ...
 
 
 def _probe(env):
@@ -24,8 +37,15 @@ def _probe(env):
 
 
 def survivable(env, action):
-    """Whether the action does not immediately end the episode."""
-    return not _probe(env).step(action)
+    """Whether the action does not end the episode badly.
+
+    Solving the board is a terminal state but it is the best possible outcome,
+    so it must not be treated the same as a wall, a self collision, or
+    starvation.
+    """
+    probe = _probe(env)
+    done = probe.step(action)
+    return not done or probe.death_cause == "solved"
 
 
 def _legal(env):
