@@ -7,6 +7,7 @@ BFS solver reach on the same seeds.
 
 from __future__ import annotations
 
+from collections import deque
 from typing import Protocol
 
 import numpy as np
@@ -96,3 +97,93 @@ class GreedyAgent:
             == best
         ]
         return int(self.rng.choice(tied))
+
+
+def _bfs(env, start, goal, blocked):
+    """Shortest path from start to goal over cells not in blocked. Returns the
+    list of cells after start, or None if unreachable."""
+    if start == goal:
+        return []
+    limit = env.grid_dim - 1
+    seen = {start}
+    queue = deque([(start, [])])
+    while queue:
+        (x, y), path = queue.popleft()
+        for dx, dy in DELTAS:
+            nxt = (x + dx, y + dy)
+            if nxt in seen:
+                continue
+            if not (0 < nxt[0] < limit and 0 < nxt[1] < limit):
+                continue
+            if nxt in blocked and nxt != goal:
+                continue
+            if nxt == goal:
+                return path + [nxt]
+            seen.add(nxt)
+            queue.append((nxt, path + [nxt]))
+    return None
+
+
+def _tail_reachable_after(env, action):
+    """Whether, having taken this action, the head can still reach its own tail.
+
+    This is the safety property that separates a BFS agent that solves boards
+    from one that walks into a pocket and starves. The tail is excluded from the
+    blocked set because it will have moved by the time the head arrives.
+    """
+    probe = _probe(env)
+    if probe.step(action):
+        return probe.death_cause == "solved"
+    body = set(probe.snake)
+    tail = probe.snake[-1]
+    body.discard(tail)
+    return _bfs(probe, probe.snake[0], tail, body) is not None
+
+
+class BFSSafeAgent:
+    """Head for the food along the shortest path, but only when doing so leaves
+    the head able to reach its tail afterward. Otherwise stall by following the
+    tail, which is always safe while the body forms a single connected path."""
+
+    def __init__(self, rng):
+        self.rng = rng
+
+    def act(self, env):
+        legal = _legal(env)
+        head = env.snake[0]
+
+        if env.food is not None:
+            body = set(env.snake)
+            body.discard(env.snake[-1])
+            path = _bfs(env, head, env.food, body)
+            if path:
+                step = path[0]
+                action = _action_between(head, step)
+                if action in legal and _tail_reachable_after(env, action):
+                    return action
+
+        stalling = [a for a in legal if _tail_reachable_after(env, a)]
+        if stalling:
+            # Move away from the food while stalling, so the tail has time to
+            # clear the route rather than being chased into a dead end.
+            if env.food is None:
+                return int(self.rng.choice(stalling))
+            best = max(
+                _distance((head[0] + DELTAS[a][0], head[1] + DELTAS[a][1]), env.food)
+                for a in stalling
+            )
+            tied = [
+                a
+                for a in stalling
+                if _distance((head[0] + DELTAS[a][0], head[1] + DELTAS[a][1]), env.food)
+                == best
+            ]
+            return int(self.rng.choice(tied))
+
+        safe = [a for a in legal if survivable(env, a)]
+        return int(self.rng.choice(safe or legal))
+
+
+def _action_between(origin, target):
+    delta = (target[0] - origin[0], target[1] - origin[1])
+    return DELTAS.index(delta)

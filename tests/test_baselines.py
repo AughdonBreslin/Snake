@@ -1,6 +1,6 @@
 import numpy as np
 
-from snake.baselines import GreedyAgent, RandomAgent, survivable
+from snake.baselines import BFSSafeAgent, GreedyAgent, RandomAgent, survivable
 from snake.env import DOWN, RIGHT, SnakeEnv
 
 
@@ -51,3 +51,25 @@ def test_greedy_avoids_an_immediately_fatal_move_when_it_can():
     env.food = (6, 3)
     action = GreedyAgent(np.random.default_rng(0)).act(env)
     assert survivable(env, action)
+
+
+def test_bfs_beats_greedy_over_many_games():
+    bfs = sum(run(BFSSafeAgent(np.random.default_rng(s)), seed=s).score for s in range(30))
+    greedy = sum(run(GreedyAgent(np.random.default_rng(s)), seed=s).score for s in range(30))
+    assert bfs > greedy
+
+
+def test_bfs_fills_most_of_a_small_board():
+    scores = [run(BFSSafeAgent(np.random.default_rng(s)), size=6, seed=s).score for s in range(20)]
+    assert np.mean(scores) > 15
+
+
+def test_bfs_only_returns_legal_actions():
+    agent = BFSSafeAgent(np.random.default_rng(0))
+    env = SnakeEnv(8, np.random.default_rng(2), starvation_limit=128)
+    for _ in range(500):
+        if env.game_over:
+            break
+        action = agent.act(env)
+        assert env.legal_actions()[action]
+        env.step(action)
