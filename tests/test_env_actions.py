@@ -13,6 +13,7 @@ def test_only_the_reversal_is_masked():
     for direction in (RIGHT, DOWN, LEFT, UP):
         env.direction = direction
         mask = env.legal_actions()
+        assert mask.dtype == bool
         assert mask.sum() == 3
         assert not mask[OPPOSITE[direction]]
 
@@ -31,11 +32,11 @@ def test_fatal_moves_stay_legal():
 def test_would_eat_is_true_only_for_the_food_cell():
     env = make()
     head = env.snake[0]
-    for action in (RIGHT, DOWN, UP):
+    for action in (RIGHT, DOWN, LEFT, UP):
         dx, dy = DELTAS[action]
         env.food = (head[0] + dx, head[1] + dy)
         assert env.would_eat(action) is True
-        others = [a for a in (RIGHT, DOWN, UP) if a != action]
+        others = [a for a in (RIGHT, DOWN, LEFT, UP) if a != action]
         assert all(env.would_eat(a) is False for a in others)
 
 
