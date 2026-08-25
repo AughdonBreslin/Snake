@@ -97,3 +97,12 @@ def _highest_body_age_position(obs):
     body = obs[5] * (obs[1] > 0)
     ys, xs = np.nonzero(body == body.max())
     return int(ys[0]), int(xs[0])
+
+
+def test_no_symmetry_aliases_its_input():
+    # np.rot90 and np.flip return views. The identity symmetry in particular
+    # would hand back a view of the caller's array, so an in place operation on
+    # a transformed observation would write through into the original.
+    obs = sample()
+    for k, flip in SYMMETRIES:
+        assert not np.shares_memory(transform_observation(obs, k, flip), obs), f"k={k} flip={flip}"

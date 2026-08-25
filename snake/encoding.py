@@ -83,7 +83,10 @@ def transform_observation(obs, k, flip):
     out = np.rot90(obs, k=k, axes=(1, 2))
     if flip:
         out = np.flip(out, axis=2)
-    out = np.ascontiguousarray(out)
+    # Always copy. np.rot90 and np.flip return views, and ascontiguousarray is a
+    # no-op on an already contiguous array, so the identity symmetry would
+    # otherwise hand back a view aliasing the caller's observation.
+    out = np.array(out, copy=True, order="C")
 
     # The heading planes are spatially constant, so rotating them is a no op.
     # Their channel identity is what has to move.
