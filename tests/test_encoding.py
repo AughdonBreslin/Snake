@@ -4,9 +4,12 @@ from snake.encoding import N_PLANES, encode
 from snake.env import RIGHT, SnakeEnv
 
 
+FOOD = (4, 1)
+
+
 def sample():
     snake = [(3, 2), (2, 2), (1, 2)]
-    return encode(size=4, snake=snake, food=(4, 4), direction=RIGHT), snake
+    return encode(size=4, snake=snake, food=FOOD, direction=RIGHT), snake
 
 
 def test_shape_and_dtype():
@@ -37,7 +40,7 @@ def test_head_and_food_and_tail_planes():
     assert obs[2].sum() == 1.0
     assert obs[2, snake[0][1], snake[0][0]] == 1.0
     assert obs[3].sum() == 1.0
-    assert obs[3, 4, 4] == 1.0
+    assert obs[3, FOOD[1], FOOD[0]] == 1.0
     assert obs[4].sum() == 1.0
     assert obs[4, snake[-1][1], snake[-1][0]] == 1.0
 
