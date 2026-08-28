@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import pathlib
 import time
 
@@ -46,17 +47,18 @@ class NetworkAgent:
 
     def __init__(self, evaluator, cfg, rng):
         self.evaluator = evaluator
-        self.cfg = cfg
+        # Evaluation must be deterministic on a fixed seed, so strip the root
+        # exploration noise the training config carries. The arena compares this
+        # agent against baselines that have no such noise.
+        self.search_cfg = dataclasses.replace(cfg.search, dirichlet_epsilon=0.0)
         self.rng = rng
-        self.move_index = 0
 
     def act(self, env):
         search = Search(
-            env, self.cfg.search, np.random.default_rng(int(self.rng.integers(_SEED_MAX)))
+            env, self.search_cfg, np.random.default_rng(int(self.rng.integers(_SEED_MAX)))
         )
-        run_search([search], self.evaluator, self.cfg.search.simulations)
+        run_search([search], self.evaluator, self.search_cfg.simulations)
         counts = search.visit_counts()
-        self.move_index += 1
         return int(np.argmax(counts))
 
 

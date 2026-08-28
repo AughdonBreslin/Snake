@@ -2,7 +2,10 @@ import numpy as np
 import torch
 
 from snake.config import RunConfig
-from snake.train import Trainer, losses
+from snake.env import SnakeEnv
+from snake.evaluator import UniformEvaluator
+from snake.mcts import Search
+from snake.train import NetworkAgent, Trainer, losses
 
 
 def cfg(tmp_path, **train):
@@ -86,3 +89,48 @@ def test_evaluate_returns_an_arena_summary(tmp_path):
     summary = trainer.evaluate()
     assert summary["games"] == 2
     assert set(summary["outcomes"]) == {"wall", "self", "starvation", "solved"}
+
+
+def test_network_agent_evaluation_search_has_no_root_noise(monkeypatch):
+    # NetworkAgent must be noise-free: the arena compares it against baselines
+    # that have no exploration noise, and evaluation must be deterministic on a
+    # fixed seed. Spying on Search._add_root_noise pins down the exact
+    # mechanism the defect used (Search.apply calls it whenever
+    # cfg.dirichlet_epsilon > 0, which the training config's default of 0.25
+    # would trigger on every move if NetworkAgent reused it unmodified).
+    #
+    # A same-position-two-agents-agree determinism check was the other option
+    # here, but it is not actually discriminating: Search.descend clones the
+    # env with a fresh generator per simulation, and that generator also drives
+    # food respawn inside the tree whenever a simulated move eats. Two
+    # differently seeded agents can therefore land on different visit counts
+    # for reasons that have nothing to do with root noise, so an agreement
+    # check could pass or fail independently of the bug. Spying on the noise
+    # call directly targets the code path in question.
+    calls = []
+    original = Search._add_root_noise
+
+    def spy(self):
+        calls.append(1)
+        original(self)
+
+    monkeypatch.setattr(Search, "_add_root_noise", spy)
+
+    run_cfg = RunConfig.build(
+        net={"channels": 16, "blocks": 2, "groups": 4},
+        search={"simulations": 8},
+        train={"board_size": 6, "device": "cpu"},
+    )
+    evaluator = UniformEvaluator(value=0.3)
+    agent = NetworkAgent(evaluator, run_cfg, np.random.default_rng(0))
+    env = SnakeEnv(6, np.random.default_rng(1), starvation_limit=200)
+
+    moves_taken = 0
+    for _ in range(5):
+        if env.game_over:
+            break
+        env.step(agent.act(env))
+        moves_taken += 1
+
+    assert moves_taken > 0
+    assert calls == []
