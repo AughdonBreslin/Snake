@@ -1,7 +1,8 @@
 import numpy as np
+import pytest
 
 from snake.config import SearchConfig
-from snake.env import OPPOSITE, RIGHT, SnakeEnv
+from snake.env import DOWN, OPPOSITE, RIGHT, SnakeEnv
 from snake.evaluator import UniformEvaluator
 from snake.mcts import Search, run_search
 
@@ -160,3 +161,43 @@ def test_open_loop_visits_different_food_futures():
     env.clone = spy
     run_search([search], UniformEvaluator(0.5), simulations=400)
     assert len(seen) > 100
+
+
+def test_a_node_that_died_once_is_still_descended_again():
+    # Terminality is a property of one determinization, not of the node. Death
+    # is absorbing and survival is not, so caching the flag would record "has
+    # ever died in any sampled world" and the pessimism would grow with the
+    # simulation budget. Freezing a safe child by hand stands in for the
+    # unlucky sample that would otherwise strand it.
+    search = make_search()
+    run_search([search], UniformEvaluator(0.5), simulations=1)
+    frozen = search.root.children[DOWN]
+    frozen.terminal = True
+    run_search([search], UniformEvaluator(0.5), simulations=63)
+    assert frozen.expanded is True
+    assert frozen.visits > 0
+    assert frozen.value_sum > 0.0
+    assert search.visit_counts().sum() == 63
+
+
+def test_a_short_evaluator_batch_is_rejected():
+    # A silent zip truncation would leave the tail searches with their pending
+    # simulation still set, and the next descend would discard that backup.
+    class ShortEvaluator:
+        def evaluate_batch(self, obs):
+            rows = len(obs) - 1
+            return (
+                np.full((rows, 4), 0.25, dtype=np.float32),
+                np.full(rows, 0.5, dtype=np.float32),
+            )
+
+    searches = [make_search(make_env(seed=s)) for s in range(2)]
+    with pytest.raises(ValueError):
+        run_search(searches, ShortEvaluator(), simulations=4)
+
+
+def test_descend_refuses_to_run_with_a_simulation_pending():
+    search = make_search()
+    assert search.descend() is not None
+    with pytest.raises(RuntimeError):
+        search.descend()

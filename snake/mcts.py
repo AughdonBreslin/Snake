@@ -61,13 +61,26 @@ class Search:
 
     def descend(self):
         """Walk to a leaf. Returns the observation needing evaluation, or None
-        when the leaf was terminal, in which case backup has already run."""
+        when this determinization died on the way, in which case backup has
+        already run.
+
+        Terminality is re-decided every simulation rather than cached. Death is
+        absorbing and survival is not, so a cached flag would record "has ever
+        died in any sampled world", a union over samples rather than an average
+        over them, and the resulting pessimism would grow with the simulation
+        budget instead of shrinking."""
+        if self._pending is not None:
+            raise RuntimeError(
+                "descend() called while a simulation is still pending; "
+                "apply() must complete the previous one first"
+            )
         scratch = self.env.clone(np.random.default_rng(int(self.rng.integers(_SEED_MAX))))
         node = self.root
         path = [node]
         rewards = []
+        done = False
 
-        while node.expanded and not node.terminal:
+        while node.expanded:
             action = self._select(node, scratch)
             ate = scratch.would_eat(action)
             done = scratch.step(action)
@@ -75,10 +88,13 @@ class Search:
             node = node.children[action]
             path.append(node)
             if done:
+                # Recorded so callers can see that this node has died at least
+                # once, but never consulted on the way down. Whether a node is
+                # terminal is decided by the current determinization alone.
                 node.terminal = True
                 break
 
-        if node.terminal:
+        if done:
             self._backup(path, rewards, 0.0)
             return None
 
@@ -138,7 +154,7 @@ class Search:
         legal = [a for a in range(4) if self.root.children[a] is not None]
         noise = self.rng.dirichlet([self.cfg.dirichlet_alpha] * len(legal))
         epsilon = self.cfg.dirichlet_epsilon
-        for action, sample in zip(legal, noise):
+        for action, sample in zip(legal, noise, strict=True):
             child = self.root.children[action]
             child.prior = (1 - epsilon) * child.prior + epsilon * float(sample)
 
@@ -157,5 +173,5 @@ def run_search(searches, evaluator, simulations):
             continue
         batch = np.stack([obs for _, obs in pending])
         priors, values = evaluator.evaluate_batch(batch)
-        for (search, _), prior, value in zip(pending, priors, values):
+        for (search, _), prior, value in zip(pending, priors, values, strict=True):
             search.apply(prior, value)
