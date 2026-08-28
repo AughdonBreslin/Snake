@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 from snake.arena import play_games, summarize
-from snake.config import seed_everything
+from snake.config import RunConfig, seed_everything
 from snake.evaluator import TorchEvaluator
 from snake.mcts import Search, run_search
 from snake.model import SnakeNet
@@ -144,3 +144,49 @@ class Trainer:
         for outcome, count in summary["outcomes"].items():
             self.writer.add_scalar(f"eval/outcome_{outcome}", count, self.iteration)
         return summary
+
+    def save_checkpoint(self, tag):
+        directory = self.run_dir / "checkpoints"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{tag}.pt"
+        torch.save(
+            {
+                "config": self.cfg.to_json(),
+                "model": self.model.state_dict(),
+                "optimizer": self.optimizer.state_dict(),
+                "iteration": self.iteration,
+                "step": self.step,
+                "buffer": self.buffer.items(),
+            },
+            path,
+        )
+        self._prune_checkpoints(directory)
+        return path
+
+    def load_checkpoint(self, path):
+        payload = torch.load(path, map_location=self.device, weights_only=False)
+        self.model.load_state_dict(payload["model"])
+        self.optimizer.load_state_dict(payload["optimizer"])
+        self.iteration = payload["iteration"]
+        self.step = payload["step"]
+        self.buffer.load(payload["buffer"])
+
+    def _prune_checkpoints(self, directory):
+        # "best.pt" is kept regardless of age; only the rolling ones are pruned.
+        rolling = sorted(
+            (p for p in directory.glob("*.pt") if p.stem != "best"),
+            key=lambda p: (p.stat().st_mtime, p.name),
+        )
+        for stale in rolling[: max(0, len(rolling) - self.cfg.train.keep_last)]:
+            stale.unlink()
+
+
+def load_for_inference(path, device):
+    """Rebuild a network from a checkpoint without constructing a Trainer, which
+    is what the menu integration in a later phase will use."""
+    payload = torch.load(path, map_location=device, weights_only=False)
+    cfg = RunConfig.from_json(payload["config"])
+    model = SnakeNet(cfg.net).to(device)
+    model.load_state_dict(payload["model"])
+    model.eval()
+    return model, cfg
