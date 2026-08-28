@@ -39,9 +39,9 @@ class TorchEvaluator:
 
     @torch.no_grad()
     def evaluate_batch(self, obs):
-        tensor = torch.from_numpy(np.ascontiguousarray(obs)).to(
-            self.device, non_blocking=True
-        )
+        # The source is an ordinary unpinned numpy array, so non_blocking
+        # would have no effect here; the transfer below is synchronous.
+        tensor = torch.from_numpy(np.ascontiguousarray(obs)).to(self.device)
         logits, values = self.model(tensor)
         priors = torch.softmax(logits, dim=1)
         return (

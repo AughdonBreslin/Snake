@@ -30,13 +30,39 @@ def test_torch_evaluator_returns_a_distribution():
     assert ((values >= 0) & (values <= 1)).all()
 
 
-def test_torch_evaluator_leaves_the_model_in_eval_mode_and_takes_no_gradients():
+def test_torch_evaluator_leaves_the_model_in_eval_mode():
     model = SnakeNet(NetConfig(channels=16, blocks=2, groups=4))
     model.train()
     evaluator = TorchEvaluator(model, torch.device("cpu"))
     evaluator.evaluate_batch(obs_batch(2))
     assert model.training is False
-    assert all(p.grad is None for p in model.parameters())
+
+
+def test_torch_evaluator_runs_with_grad_disabled():
+    # Asserting p.grad is None proves nothing: .grad is only populated by
+    # .backward(). Check the actual guarantee, which is that autograd is off
+    # while the model runs, so no graph is built during a tree search.
+    model = SnakeNet(NetConfig(channels=16, blocks=2, groups=4))
+    seen = {}
+
+    def record(module, inputs, output):
+        seen["grad_enabled"] = torch.is_grad_enabled()
+
+    handle = model.register_forward_hook(record)
+    try:
+        try:
+            TorchEvaluator(model, torch.device("cpu")).evaluate_batch(obs_batch(2))
+        except RuntimeError:
+            # The hook already recorded the grad mode seen during forward.
+            # A RuntimeError here means grad tracking leaked into the
+            # output tensors and .numpy() rejected them downstream; that
+            # is itself evidence of the bug this test exists to catch, so
+            # it must not hide the assertion below.
+            pass
+    finally:
+        handle.remove()
+
+    assert seen["grad_enabled"] is False
 
 
 def test_torch_evaluator_output_is_float32_numpy():
