@@ -1,7 +1,12 @@
 import numpy as np
 
 from snake.config import RunConfig, SearchConfig
-from snake.encoding import SYMMETRIES, transform_observation
+from snake.encoding import (
+    SYMMETRIES,
+    encode,
+    transform_observation,
+    transform_policy,
+)
 from snake.env import RIGHT, SnakeEnv
 from snake.evaluator import UniformEvaluator
 from snake.selfplay import Position, ReplayBuffer, play_batch, select_move, value_targets
@@ -73,10 +78,13 @@ def test_play_batch_value_targets_are_return_to_go_of_their_own_game():
     for result in results:
         game = positions[start : start + result.steps]
         start += result.steps
-        # The last recorded position of a game has nothing left to gain.
-        assert game[-1].z == 0.0
-        # Every earlier target is the remaining growth over the board area.
         total_cells = game[0].size * game[0].size
+        # The last recorded position has nothing left to gain, except on a
+        # solved board: there the final step is itself the last food, so the
+        # final length exceeds the last recorded length by one cell.
+        expected_final = 1 / total_cells if result.outcome == "solved" else 0.0
+        assert game[-1].z == expected_final
+        # Every target is the remaining growth over the board area.
         for position in game:
             expected = (result.length - len(position.snake)) / total_cells
             assert position.z == expected
@@ -165,6 +173,49 @@ def test_buffer_reencodes_the_observation_the_env_would_have_produced():
         seen.add(obs[0].tobytes())
     assert seen <= expected
     assert seen == expected
+
+
+def test_a_save_and_load_round_trip_preserves_eviction_order():
+    # items() must hand back insertion order, not ring order. Before the buffer
+    # wraps those coincide, so only a wrapped buffer exposes the difference.
+    buffer = ReplayBuffer(capacity=10)
+    buffer.extend([_position(i) for i in range(25)])
+    restored = ReplayBuffer(capacity=10)
+    restored.load(buffer.items())
+    restored.extend([_position(i) for i in range(25, 30)])
+    kept = sorted(round(p.z * 100) for p in restored.items())
+    assert kept == [20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+
+
+def test_buffer_applies_one_symmetry_to_both_the_observation_and_the_policy():
+    # A row whose observation and policy came from different symmetries would
+    # change no shape and no count, and would quietly teach a mirrored policy.
+    # The four pi values here are distinct, so the permutation is identifiable.
+    stored = Position(
+        snake=((3, 3), (2, 3), (1, 3)),
+        food=(6, 6),
+        direction=RIGHT,
+        size=6,
+        pi=np.array([0.4, 0.3, 0.2, 0.1]),
+        z=0.25,
+    )
+    buffer = ReplayBuffer(capacity=4)
+    buffer.extend([stored])
+    base = encode(stored.size, stored.snake, stored.food, stored.direction)
+    images = {
+        transform_observation(base, k, flip).tobytes(): (k, flip)
+        for k, flip in SYMMETRIES
+    }
+    # The heading planes permute faithfully under the group, so no two group
+    # elements give the same observation and the lookup below is unambiguous.
+    assert len(images) == len(SYMMETRIES)
+    checked = set()
+    for seed in range(40):
+        obs, pi, _ = buffer.sample(1, np.random.default_rng(seed))
+        k, flip = images[obs[0].tobytes()]  # KeyError if it is not a real image
+        assert np.allclose(pi[0], transform_policy(stored.pi, k, flip))
+        checked.add((k, flip))
+    assert checked == set(SYMMETRIES)
 
 
 def _position(index):

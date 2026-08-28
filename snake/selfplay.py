@@ -142,7 +142,15 @@ class ReplayBuffer:
         return len(self._items)
 
     def items(self):
-        return list(self._items)
+        """Positions in insertion order, oldest first.
+
+        The internal list is in ring order once the buffer has wrapped, which is
+        not the same thing. load() and its [-capacity:] truncation both read
+        their input as insertion order, so handing back ring order would make a
+        save and load round trip evict the newest entries and keep the oldest.
+        Before the buffer wraps the cursor is 0 and this is the whole list.
+        """
+        return self._items[self._cursor :] + self._items[: self._cursor]
 
     def load(self, items):
         self._items = list(items)[-self.capacity :]
