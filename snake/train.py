@@ -78,6 +78,7 @@ class Trainer:
         self.rng = np.random.default_rng(cfg.train.seed)
         self.iteration = 0
         self.step = 0
+        self.best_eval_score = -1.0
 
         self.run_dir = pathlib.Path(cfg.train.run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
@@ -158,6 +159,7 @@ class Trainer:
                 "step": self.step,
                 "buffer": self.buffer.items(),
                 "rng_state": self.rng.bit_generator.state,
+                "best_eval_score": self.best_eval_score,
             },
             path,
         )
@@ -172,6 +174,7 @@ class Trainer:
         self.step = payload["step"]
         self.buffer.load(payload["buffer"])
         self.rng.bit_generator.state = payload["rng_state"]
+        self.best_eval_score = payload["best_eval_score"]
 
     def _prune_checkpoints(self, directory):
         # "best.pt" is kept regardless of age; only the rolling ones are pruned.

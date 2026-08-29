@@ -55,6 +55,8 @@ def _train(args):
             "train_steps_per_iteration": args.train_steps,
             "batch_size": args.batch_size,
             "eval_games": args.eval_games,
+            "eval_every": args.eval_every,
+            "checkpoint_every": args.checkpoint_every,
             "seed": args.seed,
             "device": args.device,
             "run_dir": args.run_dir,
@@ -65,7 +67,6 @@ def _train(args):
         trainer.load_checkpoint(args.resume)
         print(f"resumed from {args.resume} at iteration {trainer.iteration}")
 
-    best = -1.0
     for _ in range(cfg.train.iterations):
         metrics = trainer.run_iteration()
         print(
@@ -81,8 +82,8 @@ def _train(args):
             print(f"  eval mean score {summary['mean_score']:.2f} "
                   f"fill {summary['mean_fill_fraction']:.3f} "
                   f"outcomes {summary['outcomes']}")
-            if summary["mean_score"] > best:
-                best = summary["mean_score"]
+            if summary["mean_score"] > trainer.best_eval_score:
+                trainer.best_eval_score = summary["mean_score"]
                 trainer.save_checkpoint("best")
         if trainer.iteration % cfg.train.checkpoint_every == 0:
             trainer.save_checkpoint(f"iter{trainer.iteration:06d}")
@@ -134,6 +135,8 @@ def main(argv=None):
     train.add_argument("--blocks", type=int, default=6)
     train.add_argument("--groups", type=int, default=8)
     train.add_argument("--eval-games", type=int, default=100)
+    train.add_argument("--eval-every", type=int, default=5)
+    train.add_argument("--checkpoint-every", type=int, default=5)
     train.add_argument("--seed", type=int, default=0)
     train.add_argument("--device", default="cuda")
     train.add_argument("--run-dir", default="runs/default")
