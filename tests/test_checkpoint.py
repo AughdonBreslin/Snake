@@ -78,6 +78,33 @@ def test_only_keep_last_checkpoints_are_retained(tmp_path):
     assert len(kept) == 2
 
 
+def test_resume_continues_the_rng_stream_rather_than_restarting_it(tmp_path):
+    trainer = Trainer(cfg(tmp_path))
+    trainer.run_iteration()
+    trainer.run_iteration()
+    path = trainer.save_checkpoint("test")
+
+    # Draw the values the original trainer's generator would produce next, right
+    # after the point that was checkpointed.
+    expected_continuation = trainer.rng.random(8)
+
+    fresh = Trainer(cfg(tmp_path))
+    fresh.load_checkpoint(path)
+    actual_continuation = fresh.rng.random(8)
+
+    # A fresh Trainer built from the same seed starts its rng at position zero,
+    # the same position the original trainer's rng was in before it ever drew
+    # anything. If load_checkpoint failed to restore rng_state, fresh.rng would
+    # still be sitting at that zero position, so its first 8 draws would equal
+    # the *original* trainer's first-ever 8 draws, not the draws that follow two
+    # run_iteration() calls worth of consumption. Guard against that false-pass
+    # shape explicitly:
+    restarted_stream = np.random.default_rng(cfg(tmp_path).train.seed).random(8)
+    assert not np.allclose(expected_continuation, restarted_stream)
+
+    assert np.allclose(actual_continuation, expected_continuation)
+
+
 def test_load_for_inference_needs_no_trainer(tmp_path):
     trainer = Trainer(cfg(tmp_path))
     trainer.run_iteration()

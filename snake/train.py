@@ -157,6 +157,7 @@ class Trainer:
                 "iteration": self.iteration,
                 "step": self.step,
                 "buffer": self.buffer.items(),
+                "rng_state": self.rng.bit_generator.state,
             },
             path,
         )
@@ -170,6 +171,7 @@ class Trainer:
         self.iteration = payload["iteration"]
         self.step = payload["step"]
         self.buffer.load(payload["buffer"])
+        self.rng.bit_generator.state = payload["rng_state"]
 
     def _prune_checkpoints(self, directory):
         # "best.pt" is kept regardless of age; only the rolling ones are pruned.
