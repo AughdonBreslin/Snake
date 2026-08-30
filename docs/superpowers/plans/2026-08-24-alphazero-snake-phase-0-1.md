@@ -4065,3 +4065,35 @@ git commit -m "chore: record the phase 1 result on 6x6 against the baselines"
 **Phase 1 is accepted when:** the trained agent's mean score on 6x6 exceeds the greedy baseline on the same seeds, `--resume` restores a run correctly, and TensorBoard shows `train/value_mae` decreasing without `train/entropy` collapsing to zero.
 
 If the agent does not beat greedy, that is a result, not a failure of the plan. Report it with the death cause histogram, which says which failure mode it is stuck on, and treat the next step as a research question rather than a bug hunt.
+
+---
+
+## Phase 1 result, recorded 2026-08-30
+
+Run: `runs/6x6-seed0`, 200 iterations on a 6x6 board, seed 0, default hyperparameters.
+Scored with `snake.cli eval` on `best.pt` over 100 deterministic games at seed 0, against the baselines recorded in `results/baselines.json` on the same seeds.
+
+| Agent | Mean | Median | Max | Fill | Outcomes |
+|---|---|---|---|---|---|
+| alphazero | 7.29 | 6.0 | 26 | 0.286 | wall 7, self 15, starvation 78, solved 0 |
+| random | 0.23 | 0.0 | 2 | 0.090 | wall 99, self 1 |
+| greedy | 12.53 | 12.0 | 25 | 0.431 | wall 1, self 99 |
+| bfs_safe | 20.92 | 23.0 | 33 | 0.664 | wall 16, self 22, starvation 48, solved 14 |
+| hamiltonian | 33.00 | 33.0 | 33 | 1.000 | solved 100 |
+
+The agent beats random decisively and does not beat greedy.
+Phase 1's acceptance bar was beating greedy, so the bar was not met.
+
+The learning curve is real but plateaus early.
+Evaluation mean score rose from 0.92 to about 6.1 by iteration 50, then sat in the 6.6 to 7.1 band for the remaining 150 iterations.
+Policy entropy settled at 1.042 against a uniform value of log 4 = 1.386, so the policy stayed comparatively undecided rather than collapsing.
+Value mean absolute error settled around 0.065 and stopped improving.
+
+The death cause histogram is the informative part, and it is why Phase 0 built one.
+Starvation accounts for 78% of the agent's games, against 48% for BFS and 0% for greedy.
+The agent learned to stop dying and did not learn to forage: its wall and self collision rates, at 7% and 15%, are far below greedy's 99% self collision rate, so it is genuinely better at survival than the heuristic that beats it on score.
+Its maximum of 26 also exceeds greedy's 25, so it can occasionally play well; the median of 6 against greedy's 12 is where the gap lives.
+
+This is a result rather than a defect, and the next step is a research question.
+The most likely candidates, in the order the evidence supports them: the value target rewards eating eventually but never sooner, so nothing distinguishes a state that eats in three moves from one that eats in thirty; a search budget of 100 simulations may not see far enough on a 6x6 board for the food to enter the horizon at all once the snake is short; and the starvation truncation at 72 steps may be arriving before the agent's own search would have resolved the position.
+None of these were investigated here, because Phase 1's scope ended at measuring the result honestly.
