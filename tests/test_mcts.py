@@ -4,7 +4,7 @@ import pytest
 from snake.config import SearchConfig
 from snake.env import DOWN, OPPOSITE, RIGHT, SnakeEnv
 from snake.evaluator import UniformEvaluator
-from snake.mcts import Search, run_search
+from snake.mcts import MinMaxStats, Search, run_search
 
 
 def make_env(size=6, seed=0):
@@ -201,3 +201,69 @@ def test_descend_refuses_to_run_with_a_simulation_pending():
     assert search.descend() is not None
     with pytest.raises(RuntimeError):
         search.descend()
+
+
+def test_minmax_returns_the_raw_value_until_a_spread_exists():
+    # Before two distinct values have been seen there is nothing to normalize
+    # against, so the value must pass through unchanged. Returning 0.0 or 0.5
+    # here would erase the only signal an early search has.
+    stats = MinMaxStats()
+    assert stats.normalize(0.7) == 0.7
+    stats.update(0.7)
+    assert stats.normalize(0.7) == 0.7
+
+
+def test_minmax_maps_the_observed_range_onto_the_unit_interval():
+    stats = MinMaxStats()
+    for value in (0.10, 0.12, 0.14):
+        stats.update(value)
+    assert stats.normalize(0.10) == 0.0
+    assert stats.normalize(0.14) == 1.0
+    assert np.isclose(stats.normalize(0.12), 0.5)
+
+
+def test_minmax_rescales_a_narrow_range_to_full_width():
+    # This is the whole point: sibling Q values differing by one food, 1/36,
+    # must become a full unit apart so that c_puct is comparing like with like.
+    stats = MinMaxStats()
+    stats.update(0.500)
+    stats.update(0.500 + 1 / 36)
+    assert stats.normalize(0.500) == 0.0
+    assert stats.normalize(0.500 + 1 / 36) == 1.0
+
+
+def _concentration(monkeypatch, normalized):
+    """Run one search and return how concentrated the root visits are."""
+    import snake.mcts as mcts_module
+
+    if not normalized:
+        monkeypatch.setattr(MinMaxStats, "normalize", lambda self, value: value)
+    env = make_env()
+    env.food = (env.snake[0][0] + 1, env.snake[0][1])
+    search = make_search(env, simulations=200)
+    run_search([search], UniformEvaluator(0.5), simulations=200)
+    counts = search.visit_counts()
+    return counts.max() / counts.sum(), counts
+
+
+def test_selection_normalizes_q_before_the_exploration_term(monkeypatch):
+    # Compared against the identical search with normalization disabled, so it
+    # pins the mechanism rather than a threshold. The effect is real but modest
+    # here, because terminal nodes back up 0.0 and the observed range therefore
+    # spans death against survival rather than the food increments: one food is
+    # 1/C, which normalizes to about 0.05 of that range, not to 1.0.
+    raw, _ = _concentration(monkeypatch, normalized=False)
+    monkeypatch.undo()
+    normalized, counts = _concentration(monkeypatch, normalized=True)
+    assert normalized > raw
+    assert counts.argmax() == RIGHT
+
+
+def test_each_search_gets_a_fresh_minmax():
+    # Stats are per tree. Carrying them across moves would normalize against a
+    # range from a position that no longer exists.
+    env = make_env()
+    first, second = make_search(env), make_search(env)
+    assert first.stats is not second.stats
+    run_search([first], UniformEvaluator(0.5), simulations=16)
+    assert second.stats.minimum == float("inf")
