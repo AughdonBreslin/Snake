@@ -53,17 +53,31 @@ class NetworkAgent:
         self.search_cfg = dataclasses.replace(cfg.search, dirichlet_epsilon=0.0)
         self.rng = rng
 
-    def act(self, env):
-        search = Search(
+    def new_search(self, env):
+        """Build this move's tree without running it.
+
+        Split out from act() so a caller can hold many trees at once and batch
+        their leaf evaluations. Drawing the seed here, once per move from this
+        agent's own generator, is what makes the batched and unbatched paths
+        play identical games.
+        """
+        return Search(
             env, self.search_cfg, np.random.default_rng(int(self.rng.integers(_SEED_MAX)))
         )
-        run_search([search], self.evaluator, self.search_cfg.simulations)
+
+    def choose(self, env, search):
+        """Pick a move from a search that has already run."""
         counts = search.visit_counts()
         # A child with zero visits and an illegal (None) child both read as 0
         # here, so an all-zero count vector must not fall back to argmax's
         # index-0 tie break: mask out illegal actions before choosing.
         counts = np.where(env.legal_actions(), counts, -1.0)
         return int(np.argmax(counts))
+
+    def act(self, env):
+        search = self.new_search(env)
+        run_search([search], self.evaluator, self.search_cfg.simulations)
+        return self.choose(env, search)
 
 
 class Trainer:
@@ -83,6 +97,10 @@ class Trainer:
         self.iteration = 0
         self.step = 0
         self.best_eval_score = -1.0
+        # Eval scores of the retained best slots, descending. Slot i is
+        # best.pt for i == 0 and best{i+1}.pt thereafter.
+        self.best_scores = []
+        self._pending_eval_score = None
 
         self.run_dir = pathlib.Path(cfg.train.run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
@@ -168,6 +186,8 @@ class Trainer:
                 "buffer": self.buffer.items(),
                 "rng_state": self.rng.bit_generator.state,
                 "best_eval_score": self.best_eval_score,
+                "best_scores": list(self.best_scores),
+                "eval_score": self._pending_eval_score,
             },
             path,
         )
@@ -183,11 +203,67 @@ class Trainer:
         self.buffer.load(payload["buffer"])
         self.rng.bit_generator.state = payload["rng_state"]
         self.best_eval_score = payload["best_eval_score"]
+        # Checkpoints from before ranked retention carry best_eval_score
+        # but no list. That older format is exactly a one entry ranking,
+        # so it migrates rather than failing.
+        if "best_scores" in payload:
+            self.best_scores = list(payload["best_scores"])
+        else:
+            self.best_scores = (
+                [payload["best_eval_score"]]
+                if payload["best_eval_score"] >= 0
+                else []
+            )
+
+    @staticmethod
+    def _best_name(index):
+        """Slot 0 stays best.pt so existing tooling and docs keep working."""
+        return "best.pt" if index == 0 else f"best{index + 1}.pt"
+
+    def record_best(self, score):
+        """Offer an eval score to the ranking. Saves and returns True when it
+        lands in the top keep_best, otherwise leaves the slots untouched.
+
+        Keeping several peaks matters because a single slot loses every
+        near-peak policy the moment a marginally better one appears, and a run
+        that flatlines spends most of its life producing near-peaks.
+        """
+        keep = self.cfg.train.keep_best
+        if len(self.best_scores) >= keep and score <= self.best_scores[-1]:
+            return False
+
+        directory = self.run_dir / "checkpoints"
+        directory.mkdir(parents=True, exist_ok=True)
+        position = sum(1 for existing in self.best_scores if existing >= score)
+
+        # Shift the tail down one slot, starting from the bottom so nothing is
+        # overwritten before it has been moved.
+        last = min(len(self.best_scores), keep - 1)
+        for index in range(last, position, -1):
+            source = directory / self._best_name(index - 1)
+            if source.exists():
+                source.replace(directory / self._best_name(index))
+
+        self.best_scores.insert(position, score)
+        del self.best_scores[keep:]
+        self.best_eval_score = self.best_scores[0]
+
+        self._pending_eval_score = score
+        try:
+            self.save_checkpoint(self._best_name(position).removesuffix(".pt"))
+        finally:
+            self._pending_eval_score = None
+
+        for index in range(keep, keep + 4):
+            stale = directory / self._best_name(index)
+            if stale.exists():
+                stale.unlink()
+        return True
 
     def _prune_checkpoints(self, directory):
         # "best.pt" is kept regardless of age; only the rolling ones are pruned.
         rolling = sorted(
-            (p for p in directory.glob("*.pt") if p.stem != "best"),
+            (p for p in directory.glob("*.pt") if not p.stem.startswith("best")),
             key=lambda p: (p.stat().st_mtime, p.name),
         )
         for stale in rolling[: max(0, len(rolling) - self.cfg.train.keep_last)]:

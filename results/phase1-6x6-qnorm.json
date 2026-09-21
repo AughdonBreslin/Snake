@@ -1,0 +1,14 @@
+{
+  "games": 100,
+  "mean_score": 31.99,
+  "median_score": 33.0,
+  "max_score": 33,
+  "mean_steps": 427.19,
+  "mean_fill_fraction": 0.9719444444444444,
+  "outcomes": {
+    "wall": 1,
+    "self": 6,
+    "starvation": 1,
+    "solved": 92
+  }
+}

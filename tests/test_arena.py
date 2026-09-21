@@ -1,6 +1,6 @@
 import numpy as np
 
-from snake.arena import GameResult, play_games, summarize
+from snake.arena import OUTCOMES, GameResult, play_games, play_games_batched, summarize
 from snake.baselines import GreedyAgent, HamiltonianAgent, RandomAgent
 
 
@@ -44,3 +44,106 @@ def test_hamiltonian_summary_is_a_perfect_ceiling():
     )
     assert summary["mean_fill_fraction"] == 1.0
     assert summary["outcomes"]["solved"] == 5
+
+
+def _torch_agent_setup(tmp_path):
+    import torch
+
+    from snake.config import RunConfig
+    from snake.evaluator import TorchEvaluator
+    from snake.model import SnakeNet
+    from snake.train import NetworkAgent
+
+    cfg = RunConfig.build(
+        net={"channels": 16, "blocks": 2, "groups": 4},
+        search={"simulations": 8},
+        train={"board_size": 6, "device": "cpu", "run_dir": str(tmp_path)},
+    )
+    evaluator = TorchEvaluator(SnakeNet(cfg.net), torch.device("cpu"))
+    return cfg, evaluator, (lambda rng: NetworkAgent(evaluator, cfg, rng))
+
+
+def test_batched_play_reproduces_the_unbatched_games_exactly(tmp_path):
+    # The batched path exists only for speed, so it has to be the same
+    # experiment. Games are independent of each other and of their ordering,
+    # and the network is deterministic, so batching the evaluations changes
+    # when work happens and never what it computes.
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    one_at_a_time = play_games(factory, size=6, n_games=5, seed=0)
+    lockstep = play_games_batched(
+        factory, size=6, n_games=5, seed=0,
+        evaluator=evaluator, simulations=cfg.search.simulations,
+    )
+    assert lockstep == one_at_a_time
+
+
+def test_batched_play_is_deterministic_for_a_seed(tmp_path):
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    kwargs = dict(size=6, n_games=4, evaluator=evaluator,
+                  simulations=cfg.search.simulations)
+    assert (play_games_batched(factory, seed=3, **kwargs)
+            == play_games_batched(factory, seed=3, **kwargs))
+
+
+def test_batched_play_reports_the_same_outcome_vocabulary(tmp_path):
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    results = play_games_batched(
+        factory, size=6, n_games=4, seed=0,
+        evaluator=evaluator, simulations=cfg.search.simulations,
+    )
+    assert len(results) == 4
+    assert all(r.outcome in set(OUTCOMES) for r in results)
+
+
+def test_play_games_reports_each_game_as_it_completes():
+    # A hundred games with no output until the very end is unreadable while it
+    # runs, and that matters more the longer games get.
+    seen = []
+    results = play_games(
+        RandomAgent, size=6, n_games=4, seed=0,
+        on_game=lambda completed, total, result: seen.append((completed, total, result)),
+    )
+    assert [c for c, _, _ in seen] == [1, 2, 3, 4]
+    assert all(total == 4 for _, total, _ in seen)
+    assert [r for _, _, r in seen] == results
+
+
+def test_batched_play_reports_each_game_as_it_completes(tmp_path):
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    seen = []
+    results = play_games_batched(
+        factory, size=6, n_games=5, seed=0,
+        evaluator=evaluator, simulations=cfg.search.simulations,
+        on_game=lambda completed, total, result: seen.append((completed, total, result)),
+    )
+    # Games end whenever they end, so the running count is what is monotonic,
+    # not the game index.
+    assert [c for c, _, _ in seen] == [1, 2, 3, 4, 5]
+    assert all(total == 5 for _, total, _ in seen)
+    assert sorted(r.score for _, _, r in seen) == sorted(r.score for r in results)
+
+
+def test_progress_reporting_does_not_change_the_games(tmp_path):
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    kwargs = dict(size=6, n_games=4, seed=0, evaluator=evaluator,
+                  simulations=cfg.search.simulations)
+    assert (play_games_batched(factory, on_game=lambda *a: None, **kwargs)
+            == play_games_batched(factory, **kwargs))
+
+
+def test_every_result_carries_the_game_index_that_produced_it():
+    # Games finish out of order in the batched path, so a running count cannot
+    # identify one. Without the index there is no way to replay a failure.
+    results = play_games(RandomAgent, size=6, n_games=5, seed=0)
+    assert [r.game_index for r in results] == [0, 1, 2, 3, 4]
+
+
+def test_batched_results_carry_the_same_indices_as_unbatched(tmp_path):
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    one_at_a_time = play_games(factory, size=6, n_games=5, seed=0)
+    lockstep = play_games_batched(
+        factory, size=6, n_games=5, seed=0,
+        evaluator=evaluator, simulations=cfg.search.simulations,
+    )
+    assert [r.game_index for r in lockstep] == [r.game_index for r in one_at_a_time]
+    assert lockstep == one_at_a_time
