@@ -129,3 +129,21 @@ def test_progress_reporting_does_not_change_the_games(tmp_path):
                   simulations=cfg.search.simulations)
     assert (play_games_batched(factory, on_game=lambda *a: None, **kwargs)
             == play_games_batched(factory, **kwargs))
+
+
+def test_every_result_carries_the_game_index_that_produced_it():
+    # Games finish out of order in the batched path, so a running count cannot
+    # identify one. Without the index there is no way to replay a failure.
+    results = play_games(RandomAgent, size=6, n_games=5, seed=0)
+    assert [r.game_index for r in results] == [0, 1, 2, 3, 4]
+
+
+def test_batched_results_carry_the_same_indices_as_unbatched(tmp_path):
+    cfg, evaluator, factory = _torch_agent_setup(tmp_path)
+    one_at_a_time = play_games(factory, size=6, n_games=5, seed=0)
+    lockstep = play_games_batched(
+        factory, size=6, n_games=5, seed=0,
+        evaluator=evaluator, simulations=cfg.search.simulations,
+    )
+    assert [r.game_index for r in lockstep] == [r.game_index for r in one_at_a_time]
+    assert lockstep == one_at_a_time

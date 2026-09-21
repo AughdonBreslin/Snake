@@ -29,7 +29,7 @@ def _snake_colour(position, length):
     return (40, int(shade), 70)
 
 
-def _draw(surface, pygame, font, env, cell, margin, score, game, games, solved):
+def _draw(surface, pygame, font, env, cell, margin, score, index, position, total, solved):
     surface.fill(BACKGROUND)
     dim = env.grid_dim
     for x in range(dim):
@@ -57,13 +57,18 @@ def _draw(surface, pygame, font, env, cell, margin, score, game, games, solved):
     surface.blit(font.render(
         f"score {score}   length {length}/{env.total_cells}", True, TEXT), (margin, bar))
     surface.blit(font.render(
-        f"game {game}/{games}   solved {solved}", True, DIM), (margin, bar + 24))
+        f"game {index}   ({position}/{total})   solved {solved}", True, DIM),
+        (margin, bar + 24))
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Watch a checkpoint play snake.")
     parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--games", type=int, default=5)
+    parser.add_argument("--games", type=int, default=5,
+                        help="play game indices 0..N-1")
+    parser.add_argument("--only", default=None,
+                        help="replay specific game indices, comma separated, "
+                             "as reported by `snake.cli eval`")
     parser.add_argument("--moves-per-second", type=float, default=12.0)
     parser.add_argument("--cell", type=int, default=56, help="pixels per board cell")
     parser.add_argument("--simulations", type=int, default=None,
@@ -83,18 +88,20 @@ def main(argv=None):
 
     from snake.env import SnakeEnv, default_starvation_limit
     from snake.evaluator import TorchEvaluator
-    from snake.mcts import Search, run_search
-    from snake.train import load_for_inference
+    from snake.mcts import run_search
+    from snake.train import NetworkAgent, load_for_inference
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, cfg = load_for_inference(args.checkpoint, device)
     evaluator = TorchEvaluator(model, device)
     size = cfg.train.board_size
-    search_cfg = dataclasses.replace(
-        cfg.search,
-        dirichlet_epsilon=0.0,  # evaluation is deterministic, no exploration noise
-        simulations=args.simulations or cfg.search.simulations,
-    )
+    if args.simulations:
+        cfg = dataclasses.replace(
+            cfg, search=dataclasses.replace(cfg.search, simulations=args.simulations)
+        )
+    simulations = cfg.search.simulations
+    indices = ([int(part) for part in args.only.split(",")] if args.only
+               else list(range(args.games)))
 
     pygame.init()
     font = pygame.font.SysFont("monospace", 18)
@@ -104,12 +111,17 @@ def main(argv=None):
     pygame.display.set_caption(f"snake {size}x{size} - {os.path.basename(args.checkpoint)}")
     clock = pygame.time.Clock()
 
-    print(f"{args.checkpoint}: {size}x{size}, {search_cfg.simulations} sims/move, {device}")
+    print(f"{args.checkpoint}: {size}x{size}, {simulations} sims/move, {device}")
+    print(f"replaying game indices {indices} at seed {args.seed}")
     solved, scores, running = 0, [], True
-    for game in range(1, args.games + 1):
-        env = SnakeEnv(size, np.random.default_rng([args.seed, game]),
+    for position, index in enumerate(indices, start=1):
+        # Seeded exactly as snake/arena.py seeds it, so game N here is the same
+        # game N that `snake.cli eval` reported. NetworkAgent draws its per move
+        # seed from its own generator in the same sequence, so the replay is the
+        # game that was scored, not a fresh one from the same position.
+        env = SnakeEnv(size, np.random.default_rng([args.seed, index, 0]),
                        default_starvation_limit(size))
-        rng = np.random.default_rng([args.seed, game, 1])
+        agent = NetworkAgent(evaluator, cfg, np.random.default_rng([args.seed, index, 1]))
         move = 0
         while running and not env.game_over:
             for event in pygame.event.get():
@@ -117,20 +129,19 @@ def main(argv=None):
                         event.type == pygame.KEYDOWN and event.key in
                         (pygame.K_ESCAPE, pygame.K_q)):
                     running = False
-            search = Search(env, search_cfg, np.random.default_rng([args.seed, game, move + 2]))
-            run_search([search], evaluator, search_cfg.simulations)
-            counts = search.visit_counts()
-            env.step(int(np.argmax(np.where(env.legal_actions(), counts, -1.0))))
+            search = agent.new_search(env)
+            run_search([search], evaluator, simulations)
+            env.step(agent.choose(env, search))
             move += 1
             _draw(surface, pygame, font, env, cell, margin,
-                  env.score, game, args.games, solved)
+                  env.score, index, position, len(indices), solved)
             pygame.display.flip()
             clock.tick(args.moves_per_second)
         if not running:
             break
         scores.append(env.score)
         solved += env.death_cause == "solved"
-        print(f"  game {game}: score {env.score:>3}  length {env.length:>3}  "
+        print(f"  game {index:>3}: score {env.score:>3}  length {env.length:>3}  "
               f"{move:>4} moves  {env.death_cause}")
 
     pygame.quit()

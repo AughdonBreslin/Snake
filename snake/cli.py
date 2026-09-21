@@ -110,8 +110,9 @@ def _eval(args):
     def report(completed, total, result):
         running.append(result.score)
         print(
-            f"  game {completed:>4}/{total}  score {result.score:>3}  "
-            f"{result.outcome:<10} running mean {sum(running)/len(running):6.2f}",
+            f"  {completed:>4}/{total}  game {result.game_index:>3}  "
+            f"score {result.score:>3}  {result.outcome:<10} "
+            f"running mean {sum(running)/len(running):6.2f}",
             flush=True,
         )
 

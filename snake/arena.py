@@ -19,6 +19,10 @@ class GameResult:
     length: int
     steps: int
     outcome: str
+    # Which game of the run this was. Games finish out of order when played in
+    # lockstep, so without this a result cannot be traced back to the seed that
+    # produced it, and a failure cannot be replayed.
+    game_index: int = -1
 
 
 def play_games(agent_factory, size, n_games, seed, starvation_limit=None, on_game=None):
@@ -48,6 +52,7 @@ def play_games(agent_factory, size, n_games, seed, starvation_limit=None, on_gam
                 length=env.length,
                 steps=steps,
                 outcome=env.death_cause,
+                game_index=game_index,
             )
         )
         if on_game is not None:
@@ -138,6 +143,7 @@ def play_games_batched(
                     length=env.length,
                     steps=steps[index],
                     outcome=env.death_cause,
+                    game_index=index,
                 )
                 completed += 1
                 if on_game is not None:
