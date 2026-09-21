@@ -22,6 +22,43 @@ import numpy as np
 _SEED_MAX = 2**63 - 1
 
 
+class MinMaxStats:
+    """Tracks the range of Q values seen in one tree, so selection can compare
+    them on a unit scale.
+
+    PUCT adds an exploration term to Q and weights it by c_puct. That only
+    balances when the two are the same order of magnitude. Here Q values are
+    fractions of the board still to be filled, so siblings typically differ by
+    one food, 1/C, which is 0.028 on a 6x6 board. Against a conventional c_puct
+    the exploration term is roughly fifty times the signal it is meant to
+    modulate, and visits spread almost evenly no matter what the value head
+    says. Normalizing Q against the range actually observed in this tree
+    restores the balance and makes c_puct scale free, so it does not need
+    retuning per board size. This is the modification MuZero introduced for
+    domains whose rewards have no natural scale.
+    """
+
+    __slots__ = ("minimum", "maximum")
+
+    def __init__(self):
+        self.minimum = float("inf")
+        self.maximum = -float("inf")
+
+    def update(self, value):
+        if value < self.minimum:
+            self.minimum = value
+        if value > self.maximum:
+            self.maximum = value
+
+    def normalize(self, value):
+        # Until two distinct values have been seen there is nothing to
+        # normalize against. Pass the value through rather than inventing a
+        # constant, which would erase the only signal an early search has.
+        if self.maximum > self.minimum:
+            return (value - self.minimum) / (self.maximum - self.minimum)
+        return value
+
+
 class Node:
     __slots__ = ("prior", "visits", "value_sum", "children", "terminal")
 
@@ -54,6 +91,9 @@ class Search:
         self.cfg = cfg
         self.rng = rng
         self.root = Node(1.0)
+        # Per tree, never shared across moves: normalizing against a range from
+        # a position that no longer exists would be meaningless.
+        self.stats = MinMaxStats()
         self._reward = 1.0 / env.total_cells
         self._pending = None
 
@@ -133,7 +173,10 @@ class Search:
                 child.value_sum / child.visits if child.visits else parent_value
             )
             reward = self._reward if scratch.would_eat(action) else 0.0
-            q = reward + child_value
+            # Normalized only for the comparison. The value itself is never
+            # rescaled, so backup keeps its fixed units and siblings stay
+            # commensurable exactly as before.
+            q = self.stats.normalize(reward + child_value)
             score = q + self.cfg.c_puct * child.prior * sqrt_parent / (1 + child.visits)
             if score > best_score:
                 best_score, best_action = score, action
@@ -147,6 +190,7 @@ class Search:
         for index in range(len(path) - 1, -1, -1):
             path[index].visits += 1
             path[index].value_sum += current
+            self.stats.update(path[index].value_sum / path[index].visits)
             if index > 0:
                 current = current + rewards[index - 1]
 

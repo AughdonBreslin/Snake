@@ -28,6 +28,16 @@ def test_channels_must_divide_into_groups():
         RunConfig.build(net={"channels": 65, "groups": 8})
 
 
+def test_groups_must_be_positive():
+    with pytest.raises(ValueError):
+        RunConfig.build(net={"channels": 64, "groups": 0})
+
+
+def test_simulations_below_one_are_rejected():
+    with pytest.raises(ValueError):
+        RunConfig.build(search={"simulations": 0})
+
+
 def test_json_round_trip():
     cfg = RunConfig.build(train={"board_size": 10, "seed": 3}, search={"simulations": 25})
     restored = RunConfig.from_json(cfg.to_json())

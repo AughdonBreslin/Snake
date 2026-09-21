@@ -3,3 +3,4 @@ cpp/snake
 logs/
 venv/
 __pycache__/
+runs/

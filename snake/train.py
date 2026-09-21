@@ -59,6 +59,10 @@ class NetworkAgent:
         )
         run_search([search], self.evaluator, self.search_cfg.simulations)
         counts = search.visit_counts()
+        # A child with zero visits and an illegal (None) child both read as 0
+        # here, so an all-zero count vector must not fall back to argmax's
+        # index-0 tie break: mask out illegal actions before choosing.
+        counts = np.where(env.legal_actions(), counts, -1.0)
         return int(np.argmax(counts))
 
 
@@ -136,7 +140,11 @@ class Trainer:
                 lambda rng: NetworkAgent(self.evaluator, self.cfg, rng),
                 size=size,
                 n_games=self.cfg.train.eval_games,
-                seed=self.cfg.train.seed,
+                # Offset from the run seed so the games used to pick best.pt
+                # during training are never the same games `cli eval` later
+                # reports on with the bare run seed; otherwise the headline
+                # number would be a max over many attempts on its own test set.
+                seed=self.cfg.train.seed + 1_000_000,
             ),
             total_cells=size * size,
         )

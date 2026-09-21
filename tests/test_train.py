@@ -1,8 +1,10 @@
 import numpy as np
+import pytest
 import torch
 
+from snake import train as train_module
 from snake.config import RunConfig
-from snake.env import SnakeEnv
+from snake.env import LEFT, SnakeEnv
 from snake.evaluator import UniformEvaluator
 from snake.mcts import Search
 from snake.train import NetworkAgent, Trainer, losses
@@ -134,3 +136,44 @@ def test_network_agent_evaluation_search_has_no_root_noise(monkeypatch):
 
     assert moves_taken > 0
     assert calls == []
+
+
+@pytest.mark.parametrize("simulations", [1, 2, 8])
+def test_network_agent_never_returns_a_masked_action(simulations):
+    # visit_counts() reports 0 both for a real child that has not been
+    # visited yet and for an illegal (None) child, so argmax over an all-zero
+    # vector must not silently fall back to index 0. Heading LEFT makes index
+    # 0 (RIGHT) the reversal, so this fails before the fix at simulations=1,
+    # where the root's children never accumulate a single visit.
+    run_cfg = RunConfig.build(
+        net={"channels": 16, "blocks": 2, "groups": 4},
+        search={"simulations": simulations},
+        train={"board_size": 6, "device": "cpu"},
+    )
+    evaluator = UniformEvaluator(value=0.3)
+    agent = NetworkAgent(evaluator, run_cfg, np.random.default_rng(0))
+    env = SnakeEnv(6, np.random.default_rng(1), starvation_limit=200)
+    env.direction = LEFT
+
+    action = agent.act(env)
+
+    assert env.legal_actions()[action]
+
+
+def test_evaluate_does_not_reuse_the_bare_run_seed(tmp_path, monkeypatch):
+    # The in-training evaluation used to pick best.pt must not play the exact
+    # games that `cli eval --seed <run seed>` later reports as a held-out
+    # result, or checkpoint selection would be a max over its own test set.
+    trainer = Trainer(cfg(tmp_path, seed=0))
+    captured = {}
+    original_play_games = train_module.play_games
+
+    def spy(*args, **kwargs):
+        captured["seed"] = kwargs["seed"]
+        return original_play_games(*args, **kwargs)
+
+    monkeypatch.setattr(train_module, "play_games", spy)
+
+    trainer.evaluate()
+
+    assert captured["seed"] != trainer.cfg.train.seed

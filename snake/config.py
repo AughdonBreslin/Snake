@@ -53,6 +53,8 @@ class RunConfig:
     train: TrainConfig = field(default_factory=TrainConfig)
 
     def __post_init__(self):
+        if self.net.groups < 1:
+            raise ValueError(f"groups must be at least 1, got {self.net.groups}")
         if self.net.channels % self.net.groups != 0:
             raise ValueError(
                 f"channels {self.net.channels} must be divisible by "
@@ -60,6 +62,10 @@ class RunConfig:
             )
         if self.train.board_size < 3:
             raise ValueError(f"board_size must be at least 3, got {self.train.board_size}")
+        if self.search.simulations < 1:
+            raise ValueError(
+                f"simulations must be at least 1, got {self.search.simulations}"
+            )
 
     @classmethod
     def build(cls, net=None, search=None, train=None):
