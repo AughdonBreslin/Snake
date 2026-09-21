@@ -53,17 +53,31 @@ class NetworkAgent:
         self.search_cfg = dataclasses.replace(cfg.search, dirichlet_epsilon=0.0)
         self.rng = rng
 
-    def act(self, env):
-        search = Search(
+    def new_search(self, env):
+        """Build this move's tree without running it.
+
+        Split out from act() so a caller can hold many trees at once and batch
+        their leaf evaluations. Drawing the seed here, once per move from this
+        agent's own generator, is what makes the batched and unbatched paths
+        play identical games.
+        """
+        return Search(
             env, self.search_cfg, np.random.default_rng(int(self.rng.integers(_SEED_MAX)))
         )
-        run_search([search], self.evaluator, self.search_cfg.simulations)
+
+    def choose(self, env, search):
+        """Pick a move from a search that has already run."""
         counts = search.visit_counts()
         # A child with zero visits and an illegal (None) child both read as 0
         # here, so an all-zero count vector must not fall back to argmax's
         # index-0 tie break: mask out illegal actions before choosing.
         counts = np.where(env.legal_actions(), counts, -1.0)
         return int(np.argmax(counts))
+
+    def act(self, env):
+        search = self.new_search(env)
+        run_search([search], self.evaluator, self.search_cfg.simulations)
+        return self.choose(env, search)
 
 
 class Trainer:

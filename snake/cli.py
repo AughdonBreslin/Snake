@@ -24,7 +24,13 @@ def _baselines(args):
             if name == "hamiltonian" and size % 2 == 1:
                 continue
             results = play_games(
-                factory_for(size), size=size, n_games=args.games, seed=args.seed
+                factory_for(size),
+                size=size,
+                n_games=args.games,
+                seed=args.seed,
+                on_game=lambda done, total, _r: (
+                    print(f"  {name} {done}/{total}", end="\r", flush=True)
+                ),
             )
             summary = summarize(results, total_cells=size * size)
             report[str(size)][name] = summary
@@ -91,7 +97,7 @@ def _train(args):
 def _eval(args):
     import torch
 
-    from snake.arena import play_games, summarize
+    from snake.arena import play_games_batched, summarize
     from snake.evaluator import TorchEvaluator
     from snake.train import NetworkAgent, load_for_inference
 
@@ -99,12 +105,27 @@ def _eval(args):
     model, cfg = load_for_inference(args.checkpoint, device)
     evaluator = TorchEvaluator(model, device)
     size = cfg.train.board_size
+    running = []
+
+    def report(completed, total, result):
+        running.append(result.score)
+        print(
+            f"  game {completed:>4}/{total}  score {result.score:>3}  "
+            f"{result.outcome:<10} running mean {sum(running)/len(running):6.2f}",
+            flush=True,
+        )
+
+    # Lockstep rather than one game at a time: identical games, but the leaf
+    # evaluations batch instead of calling the network one sample at a time.
     summary = summarize(
-        play_games(
+        play_games_batched(
             lambda rng: NetworkAgent(evaluator, cfg, rng),
             size=size,
             n_games=args.games,
             seed=args.seed,
+            evaluator=evaluator,
+            simulations=cfg.search.simulations,
+            on_game=report,
         ),
         total_cells=size * size,
     )
