@@ -41,6 +41,7 @@ class TrainConfig:
     eval_every: int = 5
     checkpoint_every: int = 5
     keep_last: int = 3
+    keep_best: int = 3
     seed: int = 0
     device: str = "cuda"
     run_dir: str = "runs/default"

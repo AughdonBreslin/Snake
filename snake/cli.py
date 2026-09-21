@@ -82,9 +82,7 @@ def _train(args):
             print(f"  eval mean score {summary['mean_score']:.2f} "
                   f"fill {summary['mean_fill_fraction']:.3f} "
                   f"outcomes {summary['outcomes']}")
-            if summary["mean_score"] > trainer.best_eval_score:
-                trainer.best_eval_score = summary["mean_score"]
-                trainer.save_checkpoint("best")
+            trainer.record_best(summary["mean_score"])
         if trainer.iteration % cfg.train.checkpoint_every == 0:
             trainer.save_checkpoint(f"iter{trainer.iteration:06d}")
     trainer.save_checkpoint(f"iter{trainer.iteration:06d}")
