@@ -52,6 +52,10 @@ class TrainConfig:
     seed: int = 0
     device: str = "cuda"
     run_dir: str = "runs/default"
+    # Checkpoint whose network weights this run starts from, or empty to start
+    # from random initialisation. Recorded in the config so every checkpoint
+    # carries its lineage, which is what makes a curriculum result explicable.
+    init_weights: str = ""
 
 
 @dataclass(frozen=True)

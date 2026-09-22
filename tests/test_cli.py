@@ -85,3 +85,44 @@ def test_requirements_stay_free_of_torch():
     text = (REPO / "requirements.txt").read_text()
     assert "torch" not in text
     assert "numpy" in text and "pygame" in text
+
+
+def _parse_train(extra):
+    import argparse
+    from snake import cli
+
+    captured = {}
+    real = cli._train
+    cli._train = lambda args: captured.setdefault("args", args)
+    try:
+        main(["train", *extra])
+    finally:
+        cli._train = real
+    return captured["args"]
+
+
+def test_discount_flag_defaults_to_undiscounted():
+    assert _parse_train([]).discount == 1.0
+
+
+def test_discount_flag_reaches_the_search_config(tmp_path):
+    run_dir = tmp_path / "run"
+    main([
+        "train", "--board-size", "6", "--iterations", "0",
+        "--channels", "16", "--blocks", "2", "--groups", "4",
+        "--device", "cpu", "--run-dir", str(run_dir), "--discount", "0.97",
+    ])
+    config = json.loads((run_dir / "config.json").read_text())
+    assert config["search"]["discount"] == 0.97
+
+
+def test_resume_and_init_weights_are_mutually_exclusive(tmp_path, capsys):
+    # Asserting only SystemExit would pass for the wrong reason whenever either
+    # flag is unrecognised, since argparse exits on unknown arguments too. Check
+    # that the refusal is specifically about the combination.
+    import pytest
+
+    with pytest.raises(SystemExit):
+        main(["train", "--resume", "a.pt", "--init-weights", "b.pt",
+              "--run-dir", str(tmp_path / "run")])
+    assert "not allowed with" in capsys.readouterr().err
