@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from snake.arena import play_games, summarize
+from snake.arena import play_games_batched, summarize
 from snake.config import RunConfig, seed_everything
 from snake.evaluator import TorchEvaluator
 from snake.mcts import Search, run_search
@@ -152,14 +152,24 @@ class Trainer:
         self.iteration += 1
         return metrics
 
-    def evaluate(self):
+    def evaluate(self, on_game=None):
+        """Score the current network on held out games.
+
+        Played in lockstep so leaf evaluations batch. One game at a time it was
+        harmless on 6x6 early on and took hours per evaluation once games ran
+        to hundreds of moves on 10x10, with nothing written in the meantime.
+        on_game, if given, is called as each game finishes.
+        """
         self.model.eval()
         size = self.cfg.train.board_size
         summary = summarize(
-            play_games(
+            play_games_batched(
                 lambda rng: NetworkAgent(self.evaluator, self.cfg, rng),
                 size=size,
                 n_games=self.cfg.train.eval_games,
+                evaluator=self.evaluator,
+                simulations=self.cfg.search.simulations,
+                on_game=on_game,
                 # Offset from the run seed so the games used to pick best.pt
                 # during training are never the same games `cli eval` later
                 # reports on with the bare run seed; otherwise the headline

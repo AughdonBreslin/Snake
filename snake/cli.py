@@ -87,7 +87,13 @@ def _train(args):
             f"games/s {metrics['games_per_second']:6.2f}"
         )
         if trainer.iteration % cfg.train.eval_every == 0:
-            summary = trainer.evaluate()
+            summary = trainer.evaluate(
+                on_game=lambda done, total, r: print(
+                    f"  eval {done:>3}/{total}  game {r.game_index:>3}  "
+                    f"score {r.score:>3}  {r.outcome}",
+                    flush=True,
+                )
+            )
             print(f"  eval mean score {summary['mean_score']:.2f} "
                   f"fill {summary['mean_fill_fraction']:.3f} "
                   f"outcomes {summary['outcomes']}")

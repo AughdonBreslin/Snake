@@ -166,14 +166,43 @@ def test_evaluate_does_not_reuse_the_bare_run_seed(tmp_path, monkeypatch):
     # result, or checkpoint selection would be a max over its own test set.
     trainer = Trainer(cfg(tmp_path, seed=0))
     captured = {}
-    original_play_games = train_module.play_games
+    original = train_module.play_games_batched
 
     def spy(*args, **kwargs):
         captured["seed"] = kwargs["seed"]
-        return original_play_games(*args, **kwargs)
+        return original(*args, **kwargs)
 
-    monkeypatch.setattr(train_module, "play_games", spy)
+    monkeypatch.setattr(train_module, "play_games_batched", spy)
 
     trainer.evaluate()
 
     assert captured["seed"] != trainer.cfg.train.seed
+
+
+def test_evaluate_is_the_same_experiment_played_in_lockstep(tmp_path):
+    # In-training evaluation must use the batched path: played one game at a
+    # time it took hours per evaluation on 10x10. The batched path is proven
+    # identical in test_arena, so this checks evaluate() actually routes there
+    # and reports the same summary the unbatched path would.
+    from snake.arena import play_games, summarize
+    from snake.train import NetworkAgent
+
+    trainer = Trainer(cfg(tmp_path))
+    batched = trainer.evaluate()
+    unbatched = summarize(
+        play_games(
+            lambda rng: NetworkAgent(trainer.evaluator, trainer.cfg, rng),
+            size=trainer.cfg.train.board_size,
+            n_games=trainer.cfg.train.eval_games,
+            seed=trainer.cfg.train.seed + 1_000_000,
+        ),
+        total_cells=trainer.cfg.train.board_size ** 2,
+    )
+    assert batched == unbatched
+
+
+def test_evaluate_reports_each_game(tmp_path):
+    trainer = Trainer(cfg(tmp_path))
+    seen = []
+    trainer.evaluate(on_game=lambda done, total, result: seen.append(done))
+    assert seen == list(range(1, trainer.cfg.train.eval_games + 1))
