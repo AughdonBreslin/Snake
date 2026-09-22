@@ -1,3 +1,5 @@
+import pytest
+import json
 import numpy as np
 import torch
 
@@ -206,3 +208,84 @@ def test_a_checkpoint_written_before_top_n_still_loads(tmp_path):
     fresh = Trainer(cfg(tmp_path))
     fresh.load_checkpoint(path)
     assert fresh.best_scores == [12.5]
+
+
+def _cfg_for(tmp_path, name, board_size=6, init_weights="", channels=16):
+    return RunConfig.build(
+        net={"channels": channels, "blocks": 2, "groups": 4},
+        search={"simulations": 4},
+        train={
+            "board_size": board_size,
+            "concurrent_games": 2,
+            "train_steps_per_iteration": 2,
+            "batch_size": 8,
+            "replay_capacity": 200,
+            "eval_games": 1,
+            "device": "cpu",
+            "run_dir": str(tmp_path / name),
+            "init_weights": init_weights,
+        },
+    )
+
+
+def _outputs(model, size):
+    probe = torch.from_numpy(
+        np.random.default_rng(0).random((2, 11, size + 2, size + 2)).astype(np.float32)
+    )
+    model.eval()
+    with torch.no_grad():
+        return model(probe)
+
+
+def test_init_weights_copies_the_network(tmp_path):
+    source = Trainer(_cfg_for(tmp_path, "source"))
+    source.run_iteration()
+    path = source.save_checkpoint("donor")
+
+    warm = Trainer(_cfg_for(tmp_path, "warm", init_weights=str(path)))
+    before, after = _outputs(source.model, 6), _outputs(warm.model, 6)
+    assert torch.allclose(before[0], after[0], atol=1e-6)
+    assert torch.allclose(before[1], after[1], atol=1e-6)
+
+
+def test_init_weights_starts_everything_else_fresh(tmp_path):
+    # A warm start is a new run that begins from a trained network. It must not
+    # inherit the donor's iteration count, optimizer moments, or replay buffer,
+    # which would be positions from a different board.
+    source = Trainer(_cfg_for(tmp_path, "source"))
+    source.run_iteration()
+    source.run_iteration()
+    path = source.save_checkpoint("donor")
+
+    warm = Trainer(_cfg_for(tmp_path, "warm", init_weights=str(path)))
+    assert warm.iteration == 0
+    assert warm.step == 0
+    assert len(warm.buffer) == 0
+    assert warm.optimizer.state_dict()["state"] == {}
+    assert warm.best_scores == []
+
+
+def test_init_weights_crosses_board_sizes(tmp_path):
+    # This is the whole curriculum: nothing in the network is sized from the
+    # board, so 6x6 weights must load into a 10x10 run and produce identical
+    # outputs on the same 10x10 input.
+    source = Trainer(_cfg_for(tmp_path, "six", board_size=6))
+    path = source.save_checkpoint("donor")
+    warm = Trainer(_cfg_for(tmp_path, "ten", board_size=10, init_weights=str(path)))
+    before, after = _outputs(source.model, 10), _outputs(warm.model, 10)
+    assert torch.allclose(before[0], after[0], atol=1e-6)
+
+
+def test_init_weights_refuses_a_different_network(tmp_path):
+    source = Trainer(_cfg_for(tmp_path, "narrow", channels=16))
+    path = source.save_checkpoint("donor")
+    with pytest.raises(ValueError, match="network"):
+        Trainer(_cfg_for(tmp_path, "wide", channels=32, init_weights=str(path)))
+
+
+def test_the_run_records_where_its_weights_came_from(tmp_path):
+    source = Trainer(_cfg_for(tmp_path, "source"))
+    path = source.save_checkpoint("donor")
+    warm = Trainer(_cfg_for(tmp_path, "warm", init_weights=str(path)))
+    recorded = json.loads((warm.run_dir / "config.json").read_text())
+    assert recorded["train"]["init_weights"] == str(path)

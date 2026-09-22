@@ -176,7 +176,7 @@ class Search:
             # Normalized only for the comparison. The value itself is never
             # rescaled, so backup keeps its fixed units and siblings stay
             # commensurable exactly as before.
-            q = self.stats.normalize(reward + child_value)
+            q = self.stats.normalize(reward + self.cfg.discount * child_value)
             score = q + self.cfg.c_puct * child.prior * sqrt_parent / (1 + child.visits)
             if score > best_score:
                 best_score, best_action = score, action
@@ -192,7 +192,7 @@ class Search:
             path[index].value_sum += current
             self.stats.update(path[index].value_sum / path[index].visits)
             if index > 0:
-                current = current + rewards[index - 1]
+                current = rewards[index - 1] + self.cfg.discount * current
 
     def _add_root_noise(self):
         legal = [a for a in range(4) if self.root.children[a] is not None]

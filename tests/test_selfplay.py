@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from snake.config import RunConfig, SearchConfig
 from snake.encoding import (
@@ -227,3 +228,46 @@ def _position(index):
         pi=np.array([0.4, 0.3, 0.0, 0.3]),
         z=index / 100,
     )
+
+
+def test_discount_of_one_reproduces_the_undiscounted_target():
+    # The discount generalises the existing target rather than replacing it, so
+    # the default must be exactly what was there before.
+    lengths = [3, 3, 4, 4, 4, 5]
+    assert value_targets(lengths, final_length=6, total_cells=36, discount=1.0) == \
+           value_targets(lengths, final_length=6, total_cells=36)
+    assert value_targets(lengths, final_length=6, total_cells=36, discount=1.0) == \
+           [(6 - n) / 36 for n in lengths]
+
+
+def test_a_discount_makes_food_sooner_worth_more_than_food_later():
+    # This is the whole point. Undiscounted, these two are identical: both eat
+    # once more, so both score 1/36. The value head therefore has no gradient
+    # to tell "food is close" from "food is far", which is why a trained agent
+    # will wander until it starves.
+    soon = [3, 4, 4, 4, 4, 4]    # eats on the first move
+    late = [3, 3, 3, 3, 3, 4]    # eats on the last move
+    flat_soon = value_targets(soon, 4, 36, discount=1.0)[0]
+    flat_late = value_targets(late, 4, 36, discount=1.0)[0]
+    assert flat_soon == flat_late
+
+    sharp_soon = value_targets(soon, 4, 36, discount=0.9)[0]
+    sharp_late = value_targets(late, 4, 36, discount=0.9)[0]
+    assert sharp_soon > sharp_late
+
+
+def test_the_discount_compounds_per_move_not_per_food():
+    # Time preference has to be measured in moves. Counting it per food would
+    # leave "eat in three moves" and "eat in thirty" identical again.
+    reward = 1 / 36
+    for delay in (1, 2, 5):
+        lengths = [3] * delay
+        targets = value_targets(lengths, final_length=4, total_cells=36, discount=0.5)
+        assert targets[0] == pytest.approx(reward * 0.5 ** (delay - 1))
+
+
+def test_targets_stay_within_the_value_head_range():
+    lengths = list(range(3, 30))
+    for discount in (1.0, 0.99, 0.9):
+        targets = value_targets(lengths, final_length=36, total_cells=36, discount=discount)
+        assert all(0.0 <= t <= 1.0 for t in targets)

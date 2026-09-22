@@ -86,6 +86,8 @@ class Trainer:
         seed_everything(cfg.train.seed)
         self.device = torch.device(cfg.train.device)
         self.model = SnakeNet(cfg.net).to(self.device)
+        if cfg.train.init_weights:
+            self.load_weights(cfg.train.init_weights)
         self.optimizer = torch.optim.Adam(
             self.model.parameters(),
             lr=cfg.train.learning_rate,
@@ -193,6 +195,25 @@ class Trainer:
         )
         self._prune_checkpoints(directory)
         return path
+
+    def load_weights(self, path):
+        """Start from another run's network, and nothing else.
+
+        This is a warm start rather than a resume. The iteration count, the
+        optimizer moments, the replay buffer, the generator and the best score
+        ranking all start fresh, because they describe the donor's training and
+        its buffer holds positions from whatever board the donor played. Only
+        the weights carry over, and nothing in the network is sized from the
+        board, so weights trained at one size load at any other.
+        """
+        payload = torch.load(path, map_location=self.device, weights_only=False)
+        donor = RunConfig.from_json(payload["config"]).net
+        if donor != self.cfg.net:
+            raise ValueError(
+                f"cannot start from {path}: its network is {donor}, "
+                f"but this run's network is {self.cfg.net}"
+            )
+        self.model.load_state_dict(payload["model"])
 
     def load_checkpoint(self, path):
         payload = torch.load(path, map_location=self.device, weights_only=False)

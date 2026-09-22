@@ -53,7 +53,7 @@ def _train(args):
 
     cfg = RunConfig.build(
         net={"channels": args.channels, "blocks": args.blocks, "groups": args.groups},
-        search={"simulations": args.simulations},
+        search={"simulations": args.simulations, "discount": args.discount},
         train={
             "board_size": args.board_size,
             "iterations": args.iterations,
@@ -66,9 +66,12 @@ def _train(args):
             "seed": args.seed,
             "device": args.device,
             "run_dir": args.run_dir,
+            "init_weights": args.init_weights or "",
         },
     )
     trainer = Trainer(cfg)
+    if args.init_weights:
+        print(f"starting from the weights in {args.init_weights}")
     if args.resume:
         trainer.load_checkpoint(args.resume)
         print(f"resumed from {args.resume} at iteration {trainer.iteration}")
@@ -160,7 +163,13 @@ def main(argv=None):
     train.add_argument("--seed", type=int, default=0)
     train.add_argument("--device", default="cuda")
     train.add_argument("--run-dir", default="runs/default")
-    train.add_argument("--resume", default=None)
+    train.add_argument("--discount", type=float, default=1.0,
+                       help="per move discount on future food; 1.0 is undiscounted")
+    start = train.add_mutually_exclusive_group()
+    start.add_argument("--resume", default=None,
+                       help="continue a run from its checkpoint, restoring all state")
+    start.add_argument("--init-weights", default=None,
+                       help="start a new run from another run's network weights only")
     train.set_defaults(func=_train)
 
     evaluate = sub.add_parser("eval", help="score a checkpoint")

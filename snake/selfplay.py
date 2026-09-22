@@ -35,15 +35,31 @@ class Position:
     z: float
 
 
-def value_targets(lengths, final_length, total_cells):
-    """z(s) is the fraction of the whole board still to be filled from s.
+def value_targets(lengths, final_length, total_cells, discount=1.0):
+    """Discounted return to go, in units of the whole board.
 
     Normalizing by the constant board area rather than by remaining capacity is
-    what makes z the undiscounted return of an MDP with a reward of 1/C per
-    food, which is exactly what search backs up. Dividing by remaining capacity
-    would put parent and child in different units.
+    what makes z the return of an MDP with a reward of 1/C per food, which is
+    exactly what search backs up. Dividing by remaining capacity would put
+    parent and child in different units.
+
+    At discount 1.0 this is the undiscounted fraction of the board still to be
+    filled, which is what it has always been. Below 1.0 each food is worth less
+    the further away in moves it is. That distinction is what gives the value
+    head a gradient pointing toward food: undiscounted, a state one move from
+    food and a state thirty moves from food carry identical targets, so a
+    trained agent has no reason to close the distance and will wander until it
+    starves.
     """
-    return [(final_length - length) / total_cells for length in lengths]
+    reward = 1.0 / total_cells
+    following = list(lengths[1:]) + [final_length]
+    targets = [0.0] * len(lengths)
+    running = 0.0
+    for index in range(len(lengths) - 1, -1, -1):
+        earned = reward if following[index] > lengths[index] else 0.0
+        running = earned + discount * running
+        targets[index] = running
+    return targets
 
 
 def select_move(pi, move_index, cfg, rng):
@@ -114,7 +130,9 @@ def play_batch(cfg, evaluator, rng):
     positions = []
     for index, env in enumerate(envs):
         lengths = [row[4] for row in pending[index]]
-        targets = value_targets(lengths, env.length, total_cells)
+        targets = value_targets(
+            lengths, env.length, total_cells, cfg.search.discount
+        )
         for (snake, food, direction, pi, _), z in zip(pending[index], targets, strict=True):
             positions.append(
                 Position(
