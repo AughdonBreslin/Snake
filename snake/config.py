@@ -25,6 +25,13 @@ class SearchConfig:
     dirichlet_epsilon: float = 0.25
     tau_threshold: int = 40
     tau_final: float = 0.2
+    # Per move discount on future food. At 1.0 the target is the undiscounted
+    # return to go, which makes a state one move from food and one thirty moves
+    # from food identical, so the value head has no gradient to follow and a
+    # trained agent wanders until it starves. Below 1.0 nearer food is worth
+    # more. It lives here because search must back up the same quantity the
+    # training target measures, and search only receives this config.
+    discount: float = 1.0
 
 
 @dataclass(frozen=True)

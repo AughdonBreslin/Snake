@@ -267,3 +267,26 @@ def test_each_search_gets_a_fresh_minmax():
     assert first.stats is not second.stats
     run_search([first], UniformEvaluator(0.5), simulations=16)
     assert second.stats.minimum == float("inf")
+
+
+def test_backup_discounts_the_child_value():
+    # Search has to back up the same quantity the training target measures, or
+    # the two describe different objectives and the loop is incoherent.
+    env = make_env(size=8)
+    env.food = (8, 8)
+    search = make_search(env, simulations=32, discount=0.5)
+    run_search([search], UniformEvaluator(0.4), simulations=32)
+    # Nothing is eaten within reach, so every edge reward is zero and the root
+    # value is the leaf constant discounted by its depth. Undiscounted it would
+    # be exactly 0.4; discounted it must be strictly less.
+    assert 0.0 < search.root.value_sum / search.root.visits < 0.4
+
+
+def test_a_discount_of_one_leaves_the_backup_unchanged():
+    env = make_env(size=8)
+    env.food = (8, 8)
+    plain = make_search(env, simulations=32)
+    explicit = make_search(env, simulations=32, discount=1.0)
+    run_search([plain], UniformEvaluator(0.4), simulations=32)
+    run_search([explicit], UniformEvaluator(0.4), simulations=32)
+    assert plain.root.value_sum == explicit.root.value_sum
